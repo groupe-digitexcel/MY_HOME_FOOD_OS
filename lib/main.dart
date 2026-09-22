@@ -206,7 +206,6 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       } else {
         setState(()=>pantry.add({'name':item['name'],'qty':qty,'unit':item['unit'],'min':0.0}));
       }
-      final priceController=TextEditingController();
       _refreshShopping(save:false);
       _save();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Purchase added to pantry. Add its cost in Expenses if paid now.','Achat ajouté au stock. Ajoutez son coût dans Dépenses si payé maintenant.'))));
