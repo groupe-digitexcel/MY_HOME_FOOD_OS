@@ -106,6 +106,14 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     Text(t('Pantry & freezer','Garde-manger & congélateur'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),const SizedBox(height:10),
     _card(t('Stock status','État du stock'),[_line(Icons.ac_unit,t('Freezer capacity: 65% used','Capacité congélateur : 65% utilisée')),_line(Icons.shopping_cart,lowStock.toString()+' '+t('items need shopping','articles nécessitent des achats'))]),
     ...pantry.map((x)=>Card(child:ListTile(title:Text(x['name'].toString()),subtitle:Text(x['qty'].toString()+' '+x['unit'].toString()),trailing:x['qty']<=x['min']?const Chip(label:Text('BUY')):const Icon(Icons.check_circle,color:Colors.green)))),
+    if(shopping.isNotEmpty)_card(t('Live shopping list','Liste d’achats dynamique'),[
+      for(var i=0;i<shopping.length;i++)CheckboxListTile(
+        value:shopping[i]['purchased']==true,
+        onChanged:(v)=>_purchaseShopping(i,v??false),
+        title:Text(shopping[i]['name'].toString()),
+        subtitle:Text(shopping[i]['suggestedQty'].toString()+' '+shopping[i]['unit'].toString()+' • '+shopping[i]['priority'].toString()),
+      )
+    ]),
     FilledButton.icon(onPressed:_showAddStock,icon:const Icon(Icons.add),label:Text(t('Add stock','Ajouter stock'))),FilledButton.icon(onPressed:_showAddMeal,icon:const Icon(Icons.restaurant_menu),label:Text(t('Add meal','Ajouter un repas')))
   ]);
 
@@ -153,6 +161,27 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('No ingredient mapping is defined for this meal yet.','Les ingrédients de ce repas ne sont pas encore définis.'))));
     }
   }
+  void _purchaseShopping(int index,bool purchased){
+    if(index<0||index>=shopping.length)return;
+    final item=shopping[index];
+    setState(()=>item['purchased']=purchased);
+    if(purchased){
+      final name=item['name'].toString().toLowerCase();
+      final qty=(item['suggestedQty'] as num? ?? 0).toDouble();
+      final pi=pantry.indexWhere((x)=>x['name'].toString().toLowerCase()==name);
+      if(pi>=0){
+        setState(()=>pantry[pi]['qty']=(pantry[pi]['qty'] as num? ?? 0).toDouble()+qty);
+      } else {
+        setState(()=>pantry.add({'name':item['name'],'qty':qty,'unit':item['unit'],'min':0.0}));
+      }
+      _refreshShopping(save:false);
+      _save();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Purchase added to pantry.','Achat ajouté au stock.'))));
+    } else {
+      _save();
+    }
+  }
+
   void _addExpense(double amount){setState(()=>spent+=amount);_save();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(amount.toStringAsFixed(0)+' FCFA '+t('added to food spending','ajoutés aux dépenses nourriture'))));}
   void _showAddStock(){final c=TextEditingController();showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('Add pantry item','Ajouter un article')),content:TextField(controller:c,decoration:InputDecoration(labelText:t('Name','Nom'))),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text(t('Cancel','Annuler'))),FilledButton(onPressed:(){if(c.text.trim().isNotEmpty){setState(()=>pantry.add({'name':c.text.trim(),'qty':1.0,'unit':'item','min':0.0}));_refreshShopping();}Navigator.pop(context);},child:Text(t('Add','Ajouter')))]));}
   void _showCopilot() async {
