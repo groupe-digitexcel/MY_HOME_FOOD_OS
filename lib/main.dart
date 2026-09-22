@@ -500,17 +500,17 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(q.isEmpty)return;
 
     double? parsedQty(){
-      final m=RegExp(r'(\\d+(?:[.,]\\d+)?)').firstMatch(q);
+      final m=RegExp(r'(\d+(?:[.,]\d+)?)').firstMatch(q);
       if(m!=null)return double.tryParse(m.group(1)!.replaceAll(',','.'));
-      const words={'one':1.0,'a':1.0,'an':1.0,'two':2.0,'three':3.0,'four':4.0,'five':5.0,'one':1.0,'un':1.0,'une':1.0,'deux':2.0,'trois':3.0,'quatre':4.0,'cinq':5.0};
-      for(final e in words.entries){if(RegExp(r'(^|\\s)'+RegExp.escape(e.key)+r'(\\s|$)').hasMatch(q))return e.value;}
+      const words={'one':1.0,'a':1.0,'an':1.0,'two':2.0,'three':3.0,'four':4.0,'five':5.0,'un':1.0,'une':1.0,'deux':2.0,'trois':3.0,'quatre':4.0,'cinq':5.0};
+      for(final e in words.entries){if(RegExp(r'(^|\s)'+RegExp.escape(e.key)+r'(\s|$)').hasMatch(q))return e.value;}
       return null;
     }
     String parsedUnit(){
-      if(RegExp(r'\\bkg\\b|kilograms?|kilogrammes?|kilos?').hasMatch(q))return 'kg';
-      if(RegExp(r'\\bg\\b|grams?|grammes?').hasMatch(q))return 'g';
-      if(RegExp(r'\\bml\\b|milliliters?|millilitres?').hasMatch(q))return 'ml';
-      if(RegExp(r'\\bl\\b|liters?|litres?').hasMatch(q))return 'L';
+      if(RegExp(r'\bkg\b|kilograms?|kilogrammes?|kilos?').hasMatch(q))return 'kg';
+      if(RegExp(r'\bg\b|grams?|grammes?').hasMatch(q))return 'g';
+      if(RegExp(r'\bml\b|milliliters?|millilitres?').hasMatch(q))return 'ml';
+      if(RegExp(r'\bl\b|liters?|litres?').hasMatch(q))return 'L';
       if(q.contains('bunch')||q.contains('régime')||q.contains('regime'))return 'bunches';
       if(q.contains('piece')||q.contains('pièce'))return 'piece';
       if(q.contains('bottle')||q.contains('bouteille'))return 'bottle';
@@ -566,7 +566,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     }
 
     if((q.contains('plan')||q.contains('menu'))&&(q.contains('tomorrow')||q.contains('demain'))){
-      final numberMatch=RegExp(r'(?:under|below|less than|moins de|maximum|max)\\s+(\\d[\\d .]*)').firstMatch(q);
+      final numberMatch=RegExp(r'(?:under|below|less than|moins de|maximum|max)\s+(\d[\d .]*)').firstMatch(q);
       final ceiling=numberMatch==null?double.infinity:double.tryParse(numberMatch.group(1)!.replaceAll(RegExp(r'[^0-9]'),''))??double.infinity;
       final result=HouseholdEngine.planDay(meals:meals,pantry:pantry,budgetLimit:ceiling,leftovers:leftovers,prioritizeLeftovers:true);
       if(result['meal'].toString().isEmpty){await _speak(t('No meal fits that budget ceiling.','Aucun repas ne respecte ce plafond.'));return;}
@@ -623,7 +623,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(item>=0 && hasAny(['buy','bought','purchase','acheter','acheté','achète'])){
       final name=pantry[item]['name'].toString();final storageUnit=pantry[item]['unit'].toString();final effectiveUnit=unit.isEmpty?storageUnit:unit;final storageQty=convert(qty,effectiveUnit,storageUnit);
       setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+storageQty);_refreshShopping(save:false);
-      final priceMatch=RegExp(r'(?:for|cost|prix|coût|à|a)\\s+(\\d[\\d .]*)\\s*(?:fcfa|f|francs?)?').firstMatch(q);
+      final priceMatch=RegExp(r'(?:for|cost|prix|coût|à|a)\s+(\d[\d .]*)\s*(?:fcfa|f|francs?)?').firstMatch(q);
       final price=priceMatch==null?null:double.tryParse(priceMatch.group(1)!.replaceAll(RegExp(r'[^0-9]'),''));
       _recordPurchase(name,qty,effectiveUnit,price);_refreshShopping(save:false);await _save();
       await _speak(price==null?t(qty.toString()+' '+effectiveUnit+' of '+name+' added to storage.',''+qty.toString()+' '+effectiveUnit+' de '+name+' ajouté au stock.'):t('Purchase recorded: '+qty.toString()+' '+effectiveUnit+' of '+name+' for '+price.toStringAsFixed(0)+' FCFA.','Achat enregistré : '+qty.toString()+' '+effectiveUnit+' de '+name+' pour '+price.toStringAsFixed(0)+' FCFA.'));return;
