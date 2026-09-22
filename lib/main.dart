@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart';
 
 void main() => runApp(const HomeFoodApp());
 
@@ -29,8 +33,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   ];
 
   @override void initState(){super.initState();_load();}
-  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); }
-  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); }
+  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(mounted)setState((){}); }
+  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); }
   String t(String en,String fr)=>lang=='FR'?fr:en;
   double get remaining=>budget-spent;
   int get lowStock=>pantry.where((x)=>x['qty']<=x['min']).length;
@@ -76,7 +80,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   Widget _line(IconData i,String s)=>Padding(padding:const EdgeInsets.symmetric(vertical:7),child:Row(children:[Icon(i,size:20),const SizedBox(width:10),Expanded(child:Text(s))]));
 
   Widget _mealsPage()=>ListView(padding:const EdgeInsets.all(16),children:[
-    Text(t('Weekly menu','Menu de la semaine'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),const SizedBox(height:10),
+    Row(children:[Expanded(child:Text(t('Weekly menu','Menu de la semaine'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800))),IconButton(onPressed:_showAddMeal,icon:const Icon(Icons.add_circle))]),const SizedBox(height:10),
     _card(t('Optimized for budget + leftovers','Optimisé pour budget + restes'),plan.map((x)=>_line(Icons.restaurant,x)).toList()),
     const SizedBox(height:12),Text(t('Cameroon meal library','Bibliothèque de repas camerounais'),style:const TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
     ...meals.map((m)=>Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.restaurant)),title:Text(m[0] as String),subtitle:Text(m[1].toString()+' • '+m[2].toString()+' FCFA'),trailing:IconButton(icon:const Icon(Icons.add_circle),onPressed:()=>_addExpense((m[2] as num).toDouble())))))
@@ -86,7 +90,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     Text(t('Pantry & freezer','Garde-manger & congélateur'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),const SizedBox(height:10),
     _card(t('Stock status','État du stock'),[_line(Icons.ac_unit,t('Freezer capacity: 65% used','Capacité congélateur : 65% utilisée')),_line(Icons.shopping_cart,lowStock.toString()+' '+t('items need shopping','articles nécessitent des achats'))]),
     ...pantry.map((x)=>Card(child:ListTile(title:Text(x['name'].toString()),subtitle:Text(x['qty'].toString()+' '+x['unit'].toString()),trailing:x['qty']<=x['min']?const Chip(label:Text('BUY')):const Icon(Icons.check_circle,color:Colors.green)))),
-    FilledButton.icon(onPressed:_showAddStock,icon:const Icon(Icons.add),label:Text(t('Add stock','Ajouter stock')))
+    FilledButton.icon(onPressed:_showAddStock,icon:const Icon(Icons.add),label:Text(t('Add stock','Ajouter stock'))),FilledButton.icon(onPressed:_showAddMeal,icon:const Icon(Icons.restaurant_menu),label:Text(t('Add meal','Ajouter un repas')))
   ]);
 
   Widget _carePage()=>ListView(padding:const EdgeInsets.all(16),children:[
@@ -109,75 +113,88 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   void _addExpense(double amount){setState(()=>spent+=amount);_save();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(amount.toStringAsFixed(0)+' FCFA '+t('added to food spending','ajoutés aux dépenses nourriture'))));}
   void _showAddStock(){final c=TextEditingController();showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('Add pantry item','Ajouter un article')),content:TextField(controller:c,decoration:InputDecoration(labelText:t('Name','Nom'))),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text(t('Cancel','Annuler'))),FilledButton(onPressed:(){if(c.text.trim().isNotEmpty)setState(()=>pantry.add({'name':c.text.trim(),'qty':1.0,'unit':'item','min':0.0}));Navigator.pop(context);},child:Text(t('Add','Ajouter')))]));}
-  void _showCopilot() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 18,
-            right: 18,
-            top: 8,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const CircleAvatar(child: Icon(Icons.auto_awesome)),
-                  const SizedBox(width: 10),
-                  Text(
-                    t('Home Copilot', 'Copilote Maison'),
-                    style: const TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                t(
-                  'Work with local household data. Try: “Plan tomorrow with what we have”, “What is running out?”, or “Keep this week under 60,000 FCFA”.',
-                  'Travaillez avec les données locales. Essayez : « Planifie demain avec ce que nous avons », « Qu’est-ce qui finit ? » ou « Garde la semaine sous 60 000 FCFA ».',
-                ),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ActionChip(
-                    label: Text(t('Plan tomorrow', 'Planifier demain')),
-                    onPressed: () {
-                      Navigator.pop(sheetContext);
-                      setState(() => tab = 1);
-                    },
-                  ),
-                  ActionChip(
-                    label: Text(t('Shopping list', 'Liste d’achats')),
-                    onPressed: () {
-                      Navigator.pop(sheetContext);
-                      setState(() => tab = 2);
-                    },
-                  ),
-                  ActionChip(
-                    label: Text(t('Budget check', 'Vérifier budget')),
-                    onPressed: () {
-                      Navigator.pop(sheetContext);
-                      setState(() => tab = 4);
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
+  void _showCopilot() async {
+    await _initSpeech();
+    if(!mounted)return;
+    _transcript='';
+    final input=TextEditingController();
+    showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(ctx)=>StatefulBuilder(builder:(ctx,setSheet)=>Padding(
+      padding:EdgeInsets.only(left:18,right:18,top:10,bottom:MediaQuery.of(ctx).viewInsets.bottom+20),
+      child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Row(children:[const CircleAvatar(child:Icon(Icons.auto_awesome)),const SizedBox(width:10),Expanded(child:Text(t('Home Copilot','Copilote Maison'),style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800))),IconButton(onPressed:()=>_speak(t('I can manage meals, stock, budget, shopping and house care.','Je peux gérer les repas, le stock, le budget, les achats et la maison.')),icon:Icon(_speaking?Icons.volume_up:Icons.volume_down))]),
+        Text(t('Voice + local household actions','Voix + actions locales du foyer')),const SizedBox(height:10),
+        TextField(controller:input,minLines:1,maxLines:3,decoration:InputDecoration(hintText:t('Type a command','Écrivez une commande'),border:const OutlineInputBorder())),
+        const SizedBox(height:8),
+        Row(children:[Expanded(child:FilledButton.icon(onPressed:_listening?null:()=>_listen(input,setSheet),icon:const Icon(Icons.mic),label:Text(_listening?t('Listening…','Écoute…'):t('Speak','Parler')))),const SizedBox(width:8),IconButton(onPressed:()=>_runVoiceCommand(input.text),icon:const Icon(Icons.send))]),
+        if(_transcript.isNotEmpty)Padding(padding:const EdgeInsets.only(top:8),child:Text(_transcript)),
+        const SizedBox(height:8),
+        Wrap(spacing:8,runSpacing:8,children:[
+          ActionChip(label:Text(t('Plan my week','Planifie ma semaine')),onPressed:()=>_runVoiceCommand(t('plan my week','planifie ma semaine'))),
+          ActionChip(label:Text(t('What is low?','Qu’est-ce qui finit ?')),onPressed:()=>_runVoiceCommand(t('what is low','qu’est-ce qui finit'))),
+          ActionChip(label:Text(t('Shopping list','Liste d’achats')),onPressed:()=>_runVoiceCommand(t('shopping list','liste d’achats'))),
+          ActionChip(label:Text(t('Budget status','État du budget')),onPressed:()=>_runVoiceCommand(t('budget status','état du budget'))),
+        ])
+      ])),
+    )));
+  }
+
+  Future<void> _initSpeech() async {
+    if(_speechReady)return;
+    _speechReady=await _speech.initialize(onStatus:(_){if(mounted)setState(()=>_listening=_speech.isListening);},onError:(_){if(mounted)setState(()=>_listening=false);});
+  }
+
+  Future<void> _listen(TextEditingController input, StateSetter setSheet) async {
+    await _initSpeech();
+    if(!_speechReady)return;
+    setSheet(()=>_listening=true);
+    await _speech.listen(
+      listenOptions:stt.SpeechListenOptions(listenFor:const Duration(seconds:12),pauseFor:const Duration(seconds:3),partialResults:true,onDevice:true,localeId:lang=='FR'?'fr_FR':'en_US'),
+      onResult:(SpeechRecognitionResult r){
+        input.text=r.recognizedWords;
+        if(mounted)setSheet(()=>_transcript=r.recognizedWords);
+        if(r.finalResult){setSheet(()=>_listening=false);_runVoiceCommand(r.recognizedWords);}
       },
     );
   }
+
+  Future<void> _speak(String text) async {
+    if(!mounted)return;
+    setState(()=>_speaking=true);
+    await _tts.setLanguage(lang=='FR'?'fr-FR':'en-US');
+    await _tts.setSpeechRate(0.48);
+    await _tts.speak(text);
+    if(mounted)setState(()=>_speaking=false);
+  }
+
+  Future<void> _runVoiceCommand(String raw) async {
+    final q=raw.toLowerCase().trim();
+    if(q.isEmpty)return;
+    String answer;
+    if(q.contains('plan')||q.contains('menu')||q.contains('week')||q.contains('semaine')){
+      _autoPlan(); answer=t('The weekly menu has been planned from your meal library.','Le menu hebdomadaire a été planifié depuis votre bibliothèque de repas.');
+    } else if(q.contains('low')||q.contains('stock')||q.contains('finit')||q.contains('manque')){
+      answer=lowStock==0?t('Nothing is below the minimum stock level.','Aucun article n’est sous le seuil minimum.'):lowStock.toString()+' '+t('items are low. Open Storage.','articles sont bas. Ouvrez Stock.'); setState(()=>tab=2);
+    } else if(q.contains('shopping')||q.contains('achat')){
+      setState(()=>tab=2); answer=t('I opened Storage. Generate the shopping list from low stock.','J’ai ouvert Stock. Générez la liste d’achats depuis le stock bas.');
+    } else if(q.contains('budget')||q.contains('money')||q.contains('argent')){
+      answer=t('You have ','Il vous reste ')+remaining.toStringAsFixed(0)+' FCFA '+t('remaining.','restants.'); setState(()=>tab=4);
+    } else if(q.contains('care')||q.contains('house')||q.contains('maison')||q.contains('tâche')||q.contains('task')){
+      setState(()=>tab=3); answer=t('I opened house care.','J’ai ouvert l’entretien de la maison.');
+    } else {
+      answer=t('Try: plan my week, what is low, shopping list, budget status, or house care.','Essayez : planifie ma semaine, qu’est-ce qui finit, liste d’achats, état du budget ou entretien de la maison.');
+    }
+    if(mounted)setState(()=>_transcript=answer);
+    await _speak(answer);
+  }
+
+  Future<void> _showAddMeal() async {
+    final name=TextEditingController(),region=TextEditingController(text:'All'),cost=TextEditingController(text:'3500');
+    await showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('Add meal','Ajouter un repas')),content:Column(mainAxisSize:MainAxisSize.min,children:[
+      TextField(controller:name,decoration:InputDecoration(labelText:t('Meal name','Nom du repas'))),
+      TextField(controller:region,decoration:InputDecoration(labelText:t('Region','Région'))),
+      TextField(controller:cost,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Estimated cost FCFA','Coût estimé FCFA'))),
+    ]),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text(t('Cancel','Annuler'))),FilledButton(onPressed:(){if(name.text.trim().isNotEmpty){setState(()=>meals.add([name.text.trim(),region.text.trim(),double.tryParse(cost.text)??0]));_save();}Navigator.pop(context);},child:Text(t('Add','Ajouter')))]));
+  }
+
+  @override void dispose(){_speech.stop();_tts.stop();super.dispose();}
 }
