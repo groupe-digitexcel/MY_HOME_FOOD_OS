@@ -553,7 +553,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       final days=DateTime(DateTime.now().year,DateTime.now().month+1,0).day-DateTime.now().day+1;
       final insight=HouseholdEngine.budgetInsight(budget,spent,days.toDouble());
       setState(()=>tab=4);
-      await _speak(t('Budget remaining: ','Budget restant : ')+insight['remaining'].toStringAsFixed(0)+' FCFA. '+t('Daily ceiling: ','Plafond quotidien : ')+insight['dailyLimit'].toStringAsFixed(0)+' FCFA.','') );
+      await _speak(t('Budget remaining: ','Budget restant : ')+insight['remaining'].toStringAsFixed(0)+' FCFA. '+t('Daily ceiling: ','Plafond quotidien : ')+insight['dailyLimit'].toStringAsFixed(0)+' FCFA.' );
       return;
     }
 
