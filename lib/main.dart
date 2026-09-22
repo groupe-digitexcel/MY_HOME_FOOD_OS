@@ -497,30 +497,119 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   Future<void> _executeVoiceCommand(String command) async {
     final q=command.toLowerCase().trim();
-    double? parsedQty(){
-      final m=RegExp(r'(\\d+(?:[.,]\\d+)?)').firstMatch(q);
-      return m==null?null:double.tryParse(m.group(1)!.replaceAll(',','.'));
-    }
-    int findItem(){for(var i=0;i<pantry.length;i++){if(q.contains(pantry[i]['name'].toString().toLowerCase()))return i;}return -1;}
-    if(q.contains('gas')||q.contains('gaz')){await _speak((gasLevel*100).toStringAsFixed(0)+'% '+t('gas remaining.','de gaz restant.'));return;}
-    if(q.contains('budget')||q.contains('argent')){await _speak(t('You have ','Il vous reste ')+remaining.toStringAsFixed(0)+' FCFA.');return;}
-    if(q.contains('shopping')||q.contains('achat')){await _speak(shopping.isEmpty?t('Shopping list is clear.','La liste d’achats est vide.'):t('Your shopping list has items to buy.','Votre liste d’achats contient des articles.'));return;}
-    final item=findItem(); final qty=parsedQty()??1.0;
-    if(item>=0&&(q.contains('consume')||q.contains('consommer')||q.contains('use')||q.contains('utilise')||q.contains('utiliser'))){
-      final current=(pantry[item]['qty'] as num? ?? 0).toDouble(); setState(()=>pantry[item]['qty']=max(0,current-qty)); _refreshShopping();
-      await _speak(t('${qty.toString()} consumed from ${pantry[item]['name']}.','${qty.toString()} consommé(s) de ${pantry[item]['name']}.'));return;
-    }
-    if(item>=0&&(q.contains('add')||q.contains('ajoute')||q.contains('ajouter'))){
-      setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+qty); _refreshShopping(); await _save();
-      await _speak(t('${qty.toString()} added to ${pantry[item]['name']}.','${qty.toString()} ajouté(s) à ${pantry[item]['name']}.'));return;
-    }
-    if(q.contains('expire')||q.contains('expir')||q.contains('use soon')||q.contains('bientôt')){
-      final soon=pantry.where((x){final d=DateTime.tryParse(x['useBy']?.toString()??'');return d!=null&&d.difference(DateTime.now()).inDays<=2;}).map((x)=>x['name'].toString()).toList();
-      await _speak(soon.isEmpty?t('Nothing is expiring soon.','Rien n’expire bientôt.'):t('Use soon: ','À utiliser bientôt : ')+soon.join(', '));return;
-    }
-    await _speak(t('Try: add 2 rice, consume 1 beans, check gas, budget, shopping, or expiry.','Essayez : ajouter 2 riz, consommer 1 haricot, vérifier le gaz, le budget, les achats ou les dates limites.'));
-  }
 
+    double? parsedQty(){
+      final m=RegExp(r'(\d+(?:[.,]\d+)?)').firstMatch(q);
+      if(m!=null)return double.tryParse(m.group(1)!.replaceAll(',','.'));
+      const words={'one':1.0,'a':1.0,'an':1.0,'two':2.0,'three':3.0,'four':4.0,'five':5.0,'un':1.0,'une':1.0,'deux':2.0,'trois':3.0,'quatre':4.0,'cinq':5.0};
+      for(final e in words.entries){if(RegExp(r'(^|\s)'+RegExp.escape(e.key)+r'(\s|$)').hasMatch(q))return e.value;}
+      return null;
+    }
+
+    String parsedUnit(){
+      if(RegExp(r'\bkg\b|kilograms?|kilogrammes?|kilos?').hasMatch(q))return 'kg';
+      if(RegExp(r'\bg\b|grams?|grammes?').hasMatch(q))return 'g';
+      if(RegExp(r'\bl\b|liters?|litres?').hasMatch(q))return 'L';
+      if(RegExp(r'\bml\b|milliliters?|millilitres?').hasMatch(q))return 'ml';
+      if(q.contains('bunch')||q.contains('régime')||q.contains('regime'))return 'bunches';
+      if(q.contains('piece')||q.contains('pieces')||q.contains('pièce')||q.contains('pièces'))return 'piece';
+      if(q.contains('bottle')||q.contains('bottles')||q.contains('bouteille')||q.contains('bouteilles'))return 'bottle';
+      return '';
+    }
+
+    int findItem(){
+      for(var i=0;i<pantry.length;i++){
+        final n=pantry[i]['name'].toString().toLowerCase();
+        if(q.contains(n))return i;
+      }
+      return -1;
+    }
+
+    int findMeal(){
+      for(var i=0;i<meals.length;i++){
+        if(q.contains(meals[i][0].toString().toLowerCase()))return i;
+      }
+      return -1;
+    }
+
+    if(q.contains('gas')||q.contains('gaz')){
+      await _speak((gasLevel*100).toStringAsFixed(0)+'% '+t('gas remaining.','de gaz restant.'));
+      return;
+    }
+    if(q.contains('budget')||q.contains('argent')){
+      await _speak(t('You have ','Il vous reste ')+remaining.toStringAsFixed(0)+' FCFA.');
+      return;
+    }
+    if(q.contains('shopping')||q.contains('achat')){
+      await _speak(shopping.isEmpty?t('Shopping list is clear.','La liste d’achats est vide.'):t('Your shopping list has items to buy.','Votre liste d’achats contient des articles.'));
+      return;
+    }
+
+    final mealIndex=findMeal();
+    if(mealIndex>=0 && (q.contains('cook')||q.contains('cuisine')||q.contains('cuisiner')||q.contains('prepare')||q.contains('prépare'))){
+      final mealName=meals[mealIndex][0].toString();
+      final recipe=HouseholdEngine.recipeFor(mealName);
+      if(recipe.isEmpty){
+        await _speak(t('I found '+mealName+', but its recipe is not defined yet.','J’ai trouvé '+mealName+', mais sa recette n’est pas encore définie.'));
+        return;
+      }
+      setState(()=>pantry..clear()..addAll(HouseholdEngine.consumeRecipe(pantry,recipe)));
+      _refreshShopping(save:false);
+      leftovers.add({'name':mealName,'portions':1,'useBy':'Tomorrow'});
+      _useGas(0.05,'Voice cooking: '+mealName);
+      await _save();
+      await _speak(t(mealName+' cooked. Pantry, leftovers and gas were updated.',mealName+' cuisiné. Le stock, les restes et le gaz ont été mis à jour.'));
+      return;
+    }
+
+    final item=findItem();
+    final qty=parsedQty()??1.0;
+    final unit=parsedUnit();
+
+    if(item>=0&&(q.contains('buy')||q.contains('bought')||q.contains('purchase')||q.contains('acheter')||q.contains('acheté')||q.contains('achète'))){
+      final name=pantry[item]['name'].toString();
+      final effectiveUnit=unit.isEmpty?pantry[item]['unit'].toString():unit;
+      setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+qty);
+      _refreshShopping(save:false);
+      final priceMatch=RegExp(r'(?:for|cost|prix|coût)\s+(\d[\d .]*)\s*(?:fcfa|f|francs?)?').firstMatch(q);
+      final price=priceMatch==null?null:double.tryParse(priceMatch.group(1)!.replaceAll(RegExp(r'[^0-9]'), ''));
+      _recordPurchase(name,qty,effectiveUnit,price);
+      _refreshShopping(save:false);
+      await _save();
+      final confirmation=price==null
+        ? t(qty.toString()+' '+effectiveUnit+' of '+name+' added to storage. Say the price if you want it recorded.',qty.toString()+' '+effectiveUnit+' de '+name+' ajouté au stock. Dites le prix pour l’enregistrer.')
+        : t('Purchase recorded: '+qty.toString()+' '+effectiveUnit+' of '+name+' for '+price.toStringAsFixed(0)+' FCFA.','Achat enregistré : '+qty.toString()+' '+effectiveUnit+' de '+name+' pour '+price.toStringAsFixed(0)+' FCFA.');
+      await _speak(confirmation);
+      return;
+    }
+
+    if(item>=0&&(q.contains('consume')||q.contains('consommer')||q.contains('use')||q.contains('utilise')||q.contains('utiliser'))){
+      final current=(pantry[item]['qty'] as num? ?? 0).toDouble();
+      setState(()=>pantry[item]['qty']=max(0,current-qty));
+      _refreshShopping();
+      await _speak(t(qty.toString()+' '+pantry[item]['unit'].toString()+' consumed from '+pantry[item]['name'].toString()+'.',qty.toString()+' '+pantry[item]['unit'].toString()+' consommé(s) de '+pantry[item]['name'].toString()+'.'));
+      return;
+    }
+
+    if(item>=0&&(q.contains('add')||q.contains('ajoute')||q.contains('ajouter'))){
+      setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+qty);
+      _refreshShopping();
+      await _save();
+      await _speak(t(qty.toString()+' '+pantry[item]['unit'].toString()+' added to '+pantry[item]['name'].toString()+'.',qty.toString()+' '+pantry[item]['unit'].toString()+' ajouté(s) à '+pantry[item]['name'].toString()+'.'));
+      return;
+    }
+
+    if(q.contains('expire')||q.contains('expir')||q.contains('use soon')||q.contains('bientôt')){
+      final soon=pantry.where((x){
+        final d=DateTime.tryParse(x['useBy']?.toString()??'');
+        return d!=null&&d.difference(DateTime.now()).inDays<=2;
+      }).map((x)=>x['name'].toString()).toList();
+      await _speak(soon.isEmpty?t('Nothing is expiring soon.','Rien n’expire bientôt.'):t('Use soon: ','À utiliser bientôt : ')+soon.join(', '));
+      return;
+    }
+
+    await _speak(t('Try: buy 2 kg rice for 4000 FCFA, consume 1 kg beans, cook Ndolé, check gas, budget, shopping, or expiry.','Essayez : acheter 2 kg de riz pour 4000 FCFA, consommer 1 kg de haricots, cuisiner le Ndolé, vérifier le gaz, le budget, les achats ou les dates limites.'));
+  }
 
   Future<void> _speak(String text) async {
     if(!mounted)return;
