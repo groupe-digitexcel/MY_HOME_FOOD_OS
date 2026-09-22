@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
+import 'household_engine.dart';
 
 void main() => runApp(const HomeFoodApp());
 
@@ -33,17 +34,25 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     {'name':'Plantain','qty':8.0,'unit':'bunches','min':2.0}, {'name':'Palm oil','qty':1.5,'unit':'L','min':0.5},
     {'name':'Tomatoes','qty':1.0,'unit':'kg','min':1.0}, {'name':'Onions','qty':1.2,'unit':'kg','min':0.5},
   ];
-  final plan = const ['Mon — Beans + plantain','Tue — Ndolé + plantain','Wed — Rice + chicken','Thu — Eru + water fufu','Fri — Koki + plantain','Sat — Cornchaff','Sun — Fufu corn + okra soup'];
+  final plan = <Map<String,dynamic>>[];
+  final shopping = <Map<String,dynamic>>[];
+  final leftovers = <Map<String,dynamic>>[];
+  final snacks = <String>['banana + bread + water'];
   final tasks = <Map<String,dynamic>>[
     {'task':'Sweep & mop','done':false},{'task':'Clean kitchen','done':false},{'task':'Clean fridge','done':false},{'task':'Check gas cylinder','done':false},{'task':'Laundry','done':false},
   ];
 
   @override void initState(){super.initState();_load();}
-  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(mounted)setState((){}); }
-  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); }
+  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),lo=p.getString('leftovers'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x);} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
+  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('leftovers',jsonEncode(leftovers)); }
   String t(String en,String fr)=>lang=='FR'?fr:en;
   double get remaining=>budget-spent;
   int get lowStock=>pantry.where((x)=>x['qty']<=x['min']).length;
+  String _todayMeal()=>plan.isEmpty?'Plan your week':plan[DateTime.now().weekday-1]['meal'].toString();
+  String _dinnerMeal()=>plan.isEmpty?'':plan[DateTime.now().weekday%7]['meal'].toString();
+  void _refreshShopping({bool save=true}){final next=HouseholdEngine.shoppingList(pantry);setState((){shopping..clear()..addAll(next);});if(save)_save();}
+  void _autoPlan({bool save=true}){final next=HouseholdEngine.generateWeek(meals:meals,pantry:pantry,budgetRemaining:remaining);setState((){plan..clear()..addAll(next);});if(save)_save();}
+  void _consume(String name,double amount){final i=pantry.indexWhere((x)=>x['name'].toString().toLowerCase()==name.toLowerCase());if(i<0)return;setState(()=>pantry[i]['qty']=((pantry[i]['qty'] as num)-amount).clamp(0,999999));_refreshShopping();}
 
   @override Widget build(BuildContext context)=>MaterialApp(debugShowCheckedModeBanner:false,title:'MY HOME FOOD OS',
     theme:ThemeData(useMaterial3:true,colorSchemeSeed:Colors.green,scaffoldBackgroundColor:const Color(0xfff7f8f4)),
@@ -65,9 +74,9 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     Row(children:[Expanded(child:_metric(t('Budget left','Budget restant'),remaining.toStringAsFixed(0)+' FCFA',Icons.account_balance_wallet)),const SizedBox(width:10),Expanded(child:_metric(t('Low stock','Stock bas'),lowStock.toString(),Icons.warning_amber))]),
     const SizedBox(height:12),
     _card(t('Today','Aujourd’hui'),[
-      _line(Icons.restaurant,t('Lunch: ','Déjeuner : ')+plan[DateTime.now().weekday-1].split('—').last.trim()),
-      _line(Icons.school,t('School snack: ','Goûter école : ')+'banana + bread + water'),
-      _line(Icons.nightlight,t('Dinner: ','Dîner : ')+plan[DateTime.now().weekday%7].split('—').last.trim()),
+      _line(Icons.restaurant,t('Lunch: ','Déjeuner : ')+_todayMeal()),
+      _line(Icons.school,t('School snack: ','Goûter école : ')+snacks.first),
+      _line(Icons.nightlight,t('Dinner: ','Dîner : ')+_dinnerMeal()),
     ]),
     const SizedBox(height:12),
     _card(t('Smart household insight','Conseil intelligent'),[_line(Icons.auto_awesome,lowStock>0?t('Some food is running low. Add it to shopping.','Certains aliments diminuent. Ajoutez-les aux achats.'):t('Stock is healthy. Reuse planned leftovers before cooking new food.','Le stock est bon. Utilisez les restes avant de cuisiner autre chose.'))]),
@@ -193,7 +202,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     } else if(q.contains('low')||q.contains('stock')||q.contains('finit')||q.contains('manque')){
       answer=lowStock==0?t('Nothing is below the minimum stock level.','Aucun article n’est sous le seuil minimum.'):lowStock.toString()+' '+t('items are low. Open Storage.','articles sont bas. Ouvrez Stock.'); setState(()=>tab=2);
     } else if(q.contains('shopping')||q.contains('achat')){
-      setState(()=>tab=2); answer=t('I opened Storage. Generate the shopping list from low stock.','J’ai ouvert Stock. Générez la liste d’achats depuis le stock bas.');
+      _refreshShopping(); setState(()=>tab=2); answer=t('Your live shopping list is ready.','Votre liste d’achats dynamique est prête.');
     } else if(q.contains('budget')||q.contains('money')||q.contains('argent')){
       answer=t('You have ','Il vous reste ')+remaining.toStringAsFixed(0)+' FCFA '+t('remaining.','restants.'); setState(()=>tab=4);
     } else if(q.contains('care')||q.contains('house')||q.contains('maison')||q.contains('tâche')||q.contains('task')){
