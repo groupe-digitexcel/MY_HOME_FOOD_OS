@@ -221,7 +221,8 @@ class HouseholdEngine {
       var ok=true;
       var missing=0.0;
       for(final ingredient in recipe){
-        final item=pantry.where((x)=>x['name'].toString().trim().toLowerCase()==ingredient['name'].toString().trim().toLowerCase()).firstOrNull;
+        final matches=pantry.where((x)=>x['name'].toString().trim().toLowerCase()==ingredient['name'].toString().trim().toLowerCase());
+        final item=matches.isEmpty?null:matches.first;
         final required=(ingredient['qty'] as num? ?? 0).toDouble();
         final available=(item?['qty'] as num? ?? 0).toDouble();
         if(available<required){ok=false;missing+=required-available;}
