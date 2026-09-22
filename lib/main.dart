@@ -53,7 +53,34 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     return plan.isEmpty?'Plan your week':plan[DateTime.now().weekday-1]['meal'].toString();
   }
   String _dinnerMeal()=>plan.isEmpty?'':plan[DateTime.now().weekday%7]['meal'].toString();
-  void _refreshShopping({bool save=true}){final next=HouseholdEngine.shoppingList(pantry);setState((){shopping..clear()..addAll(next);});if(save)_save();}
+  void _refreshShopping({bool save=true}){
+    final weekly=HouseholdEngine.weeklyShopping(plan,pantry);
+    final low=HouseholdEngine.shoppingList(pantry);
+    final merged=<String,Map<String,dynamic>>{};
+    for(final x in low){merged[x['name'].toString().toLowerCase()]=Map<String,dynamic>.from(x);}
+    for(final x in weekly){
+      final key=x['name'].toString().toLowerCase();
+      final existing=merged[key];
+      if(existing!=null){
+        existing['suggestedQty']=max(
+          (existing['suggestedQty'] as num? ?? 0).toDouble(),
+          (x['purchaseQty'] as num? ?? 0).toDouble(),
+        );
+        existing['priority']='planned';
+      }else{
+        merged[key]={
+          'name':x['name'],
+          'suggestedQty':x['purchaseQty'],
+          'unit':x['unit'],
+          'priority':'planned',
+          'purchased':false,
+        };
+      }
+    }
+    final next=merged.values.toList();
+    setState((){shopping..clear()..addAll(next);});
+    if(save)_save();
+  }
   void _autoPlan({bool save=true}){final next=HouseholdEngine.generateWeek(meals:meals,pantry:pantry,budgetRemaining:remaining);setState((){plan..clear()..addAll(next);});_refreshShopping(save:false);if(save)_save();}
 
   @override Widget build(BuildContext context)=>MaterialApp(debugShowCheckedModeBanner:false,title:'MY HOME FOOD OS',
@@ -179,9 +206,10 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       } else {
         setState(()=>pantry.add({'name':item['name'],'qty':qty,'unit':item['unit'],'min':0.0}));
       }
+      final priceController=TextEditingController();
       _refreshShopping(save:false);
       _save();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Purchase added to pantry.','Achat ajouté au stock.'))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Purchase added to pantry. Add its cost in Expenses if paid now.','Achat ajouté au stock. Ajoutez son coût dans Dépenses si payé maintenant.'))));
     } else {
       _save();
     }
