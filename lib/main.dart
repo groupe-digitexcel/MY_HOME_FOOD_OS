@@ -23,6 +23,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   String _transcript = '';
   String lang = 'EN';
   double budget = 250000, spent = 0;
+  double gasLevel = 1.0, gasCapacity = 1.0, gasSpent = 0;
+  final gasLogs = <Map<String,dynamic>>[];
   final meals = <List<dynamic>>[
     ['Ndolé + plantain','Littoral',4500], ['Eru + water fufu','Southwest',5000],
     ['Koki + ripe plantain','Centre',3500], ['Achombo + vegetables','West',4000],
@@ -46,8 +48,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   ];
 
   @override void initState(){super.initState();_load();}
-  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),ph=p.getString('purchaseHistory'),sn=p.getString('snacks'),lo=p.getString('leftovers'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(ph!=null){final x=jsonDecode(ph) as List; purchaseHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sn!=null){final x=jsonDecode(sn) as List; snacks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
-  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('purchaseHistory',jsonEncode(purchaseHistory)); await p.setString('snacks',jsonEncode(snacks)); await p.setString('leftovers',jsonEncode(leftovers)); }
+  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),ph=p.getString('purchaseHistory'),sn=p.getString('snacks'),gl=p.getString('gasLogs'),lo=p.getString('leftovers'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(ph!=null){final x=jsonDecode(ph) as List; purchaseHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sn!=null){final x=jsonDecode(sn) as List; snacks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} gasLevel=p.getDouble('gasLevel')??1.0; gasCapacity=p.getDouble('gasCapacity')??1.0; gasSpent=p.getDouble('gasSpent')??0; if(gl!=null){final x=jsonDecode(gl) as List; gasLogs..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
+  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('purchaseHistory',jsonEncode(purchaseHistory)); await p.setString('snacks',jsonEncode(snacks)); await p.setDouble('gasLevel',gasLevel); await p.setDouble('gasCapacity',gasCapacity); await p.setDouble('gasSpent',gasSpent); await p.setString('gasLogs',jsonEncode(gasLogs)); await p.setString('leftovers',jsonEncode(leftovers)); }
   String t(String en,String fr)=>lang=='FR'?fr:en;
   double get remaining=>budget-spent;
   int get lowStock=>pantry.where((x)=>x['qty']<=x['min']).length;
@@ -301,9 +303,42 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   Widget _carePage()=>ListView(padding:const EdgeInsets.all(16),children:[
     Text(t('House care','Entretien de la maison'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),const SizedBox(height:10),
-    _card(t('Today’s checklist','Checklist du jour'),tasks.map((e)=>CheckboxListTile(value:e['done'],onChanged:(v)=>setState(()=>e['done']=v??false),title:Text(e['task'].toString()),controlAffinity:ListTileControlAffinity.leading)).toList()),
-    _card(t('Gas & kitchen','Gaz & cuisine'),[_line(Icons.local_fire_department,t('Record each gas refill and cost.','Enregistrez chaque recharge de gaz et son coût.')),_line(Icons.local_fire_department,t('Include oven usage in monthly household cost.','Incluez l’usage du four dans le coût mensuel.'))])
+    _card(t('Today’s checklist','Checklist du jour'),tasks.map((e)=>CheckboxListTile(value:e['done'],onChanged:(v){setState(()=>e['done']=v??false);_save();},title:Text(e['task'].toString()),controlAffinity:ListTileControlAffinity.leading)).toList()),
+    _card(t('Gas management','Gestion du gaz'),[
+      LinearProgressIndicator(value:gasCapacity<=0?0:(gasLevel/gasCapacity).clamp(0,1)),
+      const SizedBox(height:8),
+      _line(Icons.local_fire_department,(gasLevel*100).toStringAsFixed(0)+'% '+t('remaining','restant')),
+      _line(Icons.payments,(gasSpent).toStringAsFixed(0)+' FCFA '+t('gas spending','dépenses gaz')),
+      if(gasLevel/gasCapacity<=0.2)_line(Icons.warning,t('Gas is running low — consider a refill.','Le gaz est presque fini — prévoyez une recharge.')),
+      FilledButton.icon(onPressed:_showGasRefill,icon:const Icon(Icons.add),label:Text(t('Record gas refill','Enregistrer une recharge')))
+    ]),
+    if(gasLogs.isNotEmpty)_card(t('Gas history','Historique du gaz'),[
+      ...gasLogs.take(10).map((x)=>_line(Icons.receipt_long,x['date'].toString()+' • '+x['amount'].toString()+' FCFA'))
+    ])
   ]);
+
+  void _showGasRefill(){
+    final cost=TextEditingController();
+    final fill=TextEditingController(text:'1');
+    showDialog(context:context,builder:(dialogContext)=>AlertDialog(
+      title:Text(t('Gas refill','Recharge de gaz')),
+      content:Column(mainAxisSize:MainAxisSize.min,children:[
+        TextField(controller:fill,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Refill amount (fraction of cylinder)','Quantité rechargée (fraction de bouteille)'))),
+        TextField(controller:cost,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Cost FCFA','Coût FCFA'))),
+      ]),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
+        FilledButton(onPressed:(){
+          final amount=(double.tryParse(fill.text)||0).clamp(0,1);
+          final price=double.tryParse(cost.text)||0;
+          setState(()=>gasLevel=(gasLevel+amount).clamp(0,gasCapacity));
+          if(price>0){gasSpent+=price;_addExpense(price);}
+          gasLogs.insert(0,{'date':DateTime.now().toIso8601String(),'amount':price,'fill':amount});
+          _save();Navigator.pop(dialogContext);
+        },child:Text(t('Save','Enregistrer')))
+      ],
+    ));
+  }
 
   Widget _reportsPage()=>ListView(padding:const EdgeInsets.all(16),children:[
     Text(t('Monthly report','Rapport mensuel'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),const SizedBox(height:10),
