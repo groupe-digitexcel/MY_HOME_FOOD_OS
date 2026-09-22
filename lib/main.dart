@@ -96,7 +96,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   Widget _mealsPage()=>ListView(padding:const EdgeInsets.all(16),children:[
     Row(children:[Expanded(child:Text(t('Weekly menu','Menu de la semaine'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800))),IconButton(onPressed:_showAddMeal,icon:const Icon(Icons.add_circle))]),const SizedBox(height:10),
-    _card(t('Optimized for budget + leftovers','Optimisé pour budget + restes'),plan.map((x)=>_line(Icons.restaurant,x)).toList()),
+    _card(t('Live weekly plan','Plan hebdomadaire dynamique'),plan.map((x)=>_line(Icons.restaurant,'${x['day']} — ${x['meal']} • ${x['estimatedCost']} FCFA')).toList()),
     const SizedBox(height:12),Text(t('Cameroon meal library','Bibliothèque de repas camerounais'),style:const TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
     ...meals.map((m)=>Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.restaurant)),title:Text(m[0] as String),subtitle:Text(m[1].toString()+' • '+m[2].toString()+' FCFA'),trailing:IconButton(icon:const Icon(Icons.add_circle),onPressed:()=>_addExpense((m[2] as num).toDouble())))))
   ]);
@@ -127,7 +127,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   ]);
 
   void _addExpense(double amount){setState(()=>spent+=amount);_save();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(amount.toStringAsFixed(0)+' FCFA '+t('added to food spending','ajoutés aux dépenses nourriture'))));}
-  void _showAddStock(){final c=TextEditingController();showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('Add pantry item','Ajouter un article')),content:TextField(controller:c,decoration:InputDecoration(labelText:t('Name','Nom'))),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text(t('Cancel','Annuler'))),FilledButton(onPressed:(){if(c.text.trim().isNotEmpty)setState(()=>pantry.add({'name':c.text.trim(),'qty':1.0,'unit':'item','min':0.0}));Navigator.pop(context);},child:Text(t('Add','Ajouter')))]));}
+  void _showAddStock(){final c=TextEditingController();showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('Add pantry item','Ajouter un article')),content:TextField(controller:c,decoration:InputDecoration(labelText:t('Name','Nom'))),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text(t('Cancel','Annuler'))),FilledButton(onPressed:(){if(c.text.trim().isNotEmpty){setState(()=>pantry.add({'name':c.text.trim(),'qty':1.0,'unit':'item','min':0.0}));_refreshShopping();}Navigator.pop(context);},child:Text(t('Add','Ajouter')))]));}
   void _showCopilot() async {
     await _initSpeech();
     if(!mounted)return;
@@ -151,18 +151,6 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         ])
       ])),
     )));
-  }
-
-  void _autoPlan() {
-    if (meals.isEmpty) return;
-    setState(() {
-      // Rotate through the available meal library for a simple budget-aware local plan.
-      for (var i = 0; i < 7; i++) {
-        final m = meals[i % meals.length];
-        // The visible plan is immutable in this version, so the command still records its execution.
-      }
-    });
-    _save();
   }
 
   Future<void> _initSpeech() async {
