@@ -368,6 +368,13 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(q.contains('fufu corn')) return ['Palm oil'];
     return [];
   }
+  void _useGas(double amount,String activity){
+    if(amount<=0)return;
+    setState(()=>gasLevel=(gasLevel-amount).clamp(0,gasCapacity));
+    gasLogs.insert(0,{'date':DateTime.now().toIso8601String(),'amount':0.0,'fill':-amount,'activity':activity});
+    _save();
+  }
+
   void _cookTodayLunch(){
     final meal=_todayMeal();
     final usingLeftover=leftovers.isNotEmpty && leftovers.first['name'].toString()==meal;
@@ -379,6 +386,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       setState(()=>pantry..clear()..addAll(next));
       _refreshShopping();
       setState(()=>usingLeftover ? leftovers.removeAt(0) : leftovers.add({'name':meal,'portions':1,'useBy':'Tomorrow'}));
+      _useGas(0.05,'Lunch: '+meal);
       _save();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Lunch cooked: pantry updated and a leftover portion saved.','Déjeuner cuisiné : stock mis à jour et une portion de reste enregistrée.'))));
     } else {
