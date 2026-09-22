@@ -36,6 +36,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   ];
   final plan = <Map<String,dynamic>>[];
   final shopping = <Map<String,dynamic>>[];
+  final purchaseHistory = <Map<String,dynamic>>[];
   final leftovers = <Map<String,dynamic>>[];
   final snacks = <String>['banana + bread + water'];
   final tasks = <Map<String,dynamic>>[
@@ -43,8 +44,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   ];
 
   @override void initState(){super.initState();_load();}
-  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),lo=p.getString('leftovers'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
-  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('leftovers',jsonEncode(leftovers)); }
+  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),ph=p.getString('purchaseHistory'),lo=p.getString('leftovers'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(ph!=null){final x=jsonDecode(ph) as List; purchaseHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
+  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('purchaseHistory',jsonEncode(purchaseHistory)); await p.setString('leftovers',jsonEncode(leftovers)); }
   String t(String en,String fr)=>lang=='FR'?fr:en;
   double get remaining=>budget-spent;
   int get lowStock=>pantry.where((x)=>x['qty']<=x['min']).length;
@@ -158,6 +159,11 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     _metric(t('Monthly budget','Budget mensuel'),budget.toStringAsFixed(0)+' FCFA',Icons.account_balance_wallet),
     _metric(t('Food spending','Dépenses nourriture'),spent.toStringAsFixed(0)+' FCFA',Icons.restaurant),
     _metric(t('Remaining','Reste'),remaining.toStringAsFixed(0)+' FCFA',Icons.savings),
+    if(purchaseHistory.isNotEmpty)_card(t('Purchase history','Historique des achats'),[
+      ...purchaseHistory.take(12).map((x)=>_line(Icons.receipt_long,
+        x['name'].toString()+' — '+x['qty'].toString()+' '+x['unit'].toString()+
+        (x['cost'] as num? ?? 0)>0 ? ' • '+(x['cost'] as num).toStringAsFixed(0)+' FCFA' : '')),
+    ]),
     _card(t('Household intelligence','Intelligence du foyer'),[
       _line(Icons.trending_down,t('Reuse leftovers to reduce repeated cooking.','Réutilisez les restes pour réduire les cuissons répétées.')),
       _line(Icons.inventory,t('Buy long-life dry goods in bulk when budget permits.','Achetez les produits secs longue conservation en gros lorsque le budget le permet.')),
@@ -208,10 +214,10 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     }
     _refreshShopping(save:false);
     _save();
-    _showPurchaseCost(item['name'].toString());
+    _showPurchaseCost(item['name'].toString(),qty,item['unit'].toString());
   }
 
-  void _showPurchaseCost(String itemName){
+  void _showPurchaseCost(String itemName,double qty,String unit){
     final c=TextEditingController();
     showDialog(context:context,builder:(dialogContext)=>AlertDialog(
       title:Text(t('Record purchase cost','Enregistrer le coût de l’achat')),
@@ -219,17 +225,31 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         labelText:t('Amount in FCFA (optional)','Montant en FCFA (facultatif)'),
       )),
       actions:[
-        TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Skip','Ignorer'))),
+        TextButton(onPressed:(){
+          _recordPurchase(itemName,qty,unit,null);
+          Navigator.pop(dialogContext);
+        },child:Text(t('Skip','Ignorer'))),
         FilledButton(onPressed:(){
           final amount=double.tryParse(c.text.trim());
-          if(amount!=null && amount>=0){
-            _addExpense(amount);
-          }
+          _recordPurchase(itemName,qty,unit,amount);
           Navigator.pop(dialogContext);
         },child:Text(t('Save cost','Enregistrer')))
       ],
     ));
   }
+
+  void _recordPurchase(String name,double qty,String unit,double? cost){
+    final now=DateTime.now();
+    setState(()=>purchaseHistory.insert(0,{
+      'name':name,'qty':qty,'unit':unit,'cost':cost??0.0,'date':now.toIso8601String(),
+    }));
+    if(cost!=null && cost>=0 && cost>0)_addExpense(cost);
+    else _save();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(
+      t('Purchase recorded.','Achat enregistré.')
+    )));
+  }
+
 
   void _addExpense(double amount){setState(()=>spent+=amount);_save();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(amount.toStringAsFixed(0)+' FCFA '+t('added to food spending','ajoutés aux dépenses nourriture'))));}
   void _showAddStock(){final c=TextEditingController();showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('Add pantry item','Ajouter un article')),content:TextField(controller:c,decoration:InputDecoration(labelText:t('Name','Nom'))),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text(t('Cancel','Annuler'))),FilledButton(onPressed:(){if(c.text.trim().isNotEmpty){setState(()=>pantry.add({'name':c.text.trim(),'qty':1.0,'unit':'item','min':0.0}));_refreshShopping();}Navigator.pop(context);},child:Text(t('Add','Ajouter')))]));}
