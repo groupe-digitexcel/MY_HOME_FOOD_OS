@@ -54,7 +54,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   }
   String _dinnerMeal()=>plan.isEmpty?'':plan[DateTime.now().weekday%7]['meal'].toString();
   void _refreshShopping({bool save=true}){final next=HouseholdEngine.shoppingList(pantry);setState((){shopping..clear()..addAll(next);});if(save)_save();}
-  void _autoPlan({bool save=true}){final next=HouseholdEngine.generateWeek(meals:meals,pantry:pantry,budgetRemaining:remaining);setState((){plan..clear()..addAll(next);});if(save)_save();}
+  void _autoPlan({bool save=true}){final next=HouseholdEngine.generateWeek(meals:meals,pantry:pantry,budgetRemaining:remaining);setState((){plan..clear()..addAll(next);});_refreshShopping(save:false);if(save)_save();}
 
   @override Widget build(BuildContext context)=>MaterialApp(debugShowCheckedModeBanner:false,title:'MY HOME FOOD OS',
     theme:ThemeData(useMaterial3:true,colorSchemeSeed:Colors.green,scaffoldBackgroundColor:const Color(0xfff7f8f4)),
