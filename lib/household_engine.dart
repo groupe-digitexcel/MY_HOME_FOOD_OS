@@ -265,6 +265,176 @@ class HouseholdEngine {
     return {'meal':'','estimatedCost':0.0,'source':'none','reason':'No meal in the library fits the requested budget.'};
   }
 
+  /// Evaluates every meal against pantry, leftovers and a spending ceiling.
+  /// Quantities are normalized for g/kg and ml/L where possible.
+  static List<Map<String, dynamic>> mealDecisions({
+    required List<dynamic> meals,
+    required List<Map<String, dynamic>> pantry,
+    List<Map<String, dynamic>> leftovers = const [],
+    double budgetLimit = double.infinity,
+  }) {
+    final result = <Map<String, dynamic>>[];
+    for (final raw in meals) {
+      if (raw is! List || raw.length < 3) continue;
+      final name = raw[0].toString();
+      final recipe = recipeFor(name);
+      if (recipe.isEmpty) continue;
+      var missing = 0.0;
+      final missingItems = <String>[];
+      for (final ingredient in recipe) {
+        final required = (ingredient['qty'] as num? ?? 0).toDouble();
+        final unit = ingredient['unit'].toString();
+        final item = pantry.cast<Map<String, dynamic>>().firstWhere(
+          (x) => x['name'].toString().trim().toLowerCase() ==
+              ingredient['name'].toString().trim().toLowerCase(),
+          orElse: () => <String, dynamic>{},
+        );
+        final available = _compatibleQuantity(
+          (item['qty'] as num? ?? 0).toDouble(),
+          item['unit']?.toString() ?? '',
+          unit,
+        );
+        if (available + 0.000001 < required) {
+          missing += required - available;
+          missingItems.add(ingredient['name'].toString());
+        }
+      }
+      final cost = (raw[2] as num).toDouble();
+      final leftoverMatch = leftovers.any((x) {
+        final n = x['name'].toString().toLowerCase();
+        final m = name.toLowerCase();
+        return n.contains(m) || m.contains(n);
+      });
+      final pantryReady = missingItems.isEmpty;
+      result.add({
+        'name': name,
+        'region': raw[1].toString(),
+        'estimatedCost': cost,
+        'withinBudget': cost <= budgetLimit,
+        'pantryReady': pantryReady,
+        'usesLeftover': leftoverMatch,
+        'missingQty': missing,
+        'missingItems': missingItems,
+        'source': leftoverMatch
+            ? 'leftover'
+            : pantryReady
+                ? 'pantry'
+                : 'shopping',
+      });
+    }
+    result.sort((a, b) {
+      final aScore = (a['usesLeftover'] == true ? 40 : 0) +
+          (a['pantryReady'] == true ? 30 : 0) +
+          ((a['withinBudget'] == true) ? 20 : 0);
+      final bScore = (b['usesLeftover'] == true ? 40 : 0) +
+          (b['pantryReady'] == true ? 30 : 0) +
+          ((b['withinBudget'] == true) ? 20 : 0);
+      if (aScore != bScore) return bScore.compareTo(aScore);
+      return (a['estimatedCost'] as double)
+          .compareTo(b['estimatedCost'] as double);
+    });
+    return result;
+  }
+
+  static double _compatibleQuantity(
+    double quantity,
+    String fromUnit,
+    String toUnit,
+  ) {
+    final from = fromUnit.trim().toLowerCase();
+    final to = toUnit.trim().toLowerCase();
+    if (from == to || from.isEmpty || to.isEmpty) return quantity;
+    if (from == 'g' && to == 'kg') return quantity / 1000;
+    if (from == 'kg' && to == 'g') return quantity * 1000;
+    if (from == 'ml' && to == 'l') return quantity / 1000;
+    if (from == 'l' && to == 'ml') return quantity * 1000;
+    return quantity;
+  }
+
+  /// Creates a constrained multi-day plan. It favors leftovers and pantry-ready
+  /// meals, avoids repeating meals until the library is exhausted, and keeps the
+  /// total estimated meal cost under the requested ceiling when possible.
+  static List<Map<String, dynamic>> planNextDays({
+    required List<dynamic> meals,
+    required List<Map<String, dynamic>> pantry,
+    required double budgetLimit,
+    required int days,
+    List<Map<String, dynamic>> leftovers = const [],
+  }) {
+    final decisions = mealDecisions(
+      meals: meals,
+      pantry: pantry,
+      leftovers: leftovers,
+      budgetLimit: double.infinity,
+    );
+    final used = <String>{};
+    final output = <Map<String, dynamic>>[];
+    var total = 0.0;
+    final count = max(1, days);
+    for (var i = 0; i < count; i++) {
+      final candidates = decisions.where((x) {
+        final name = x['name'].toString().toLowerCase();
+        final cost = x['estimatedCost'] as double;
+        return !used.contains(name) &&
+            (x['usesLeftover'] == true || x['pantryReady'] == true || cost <= budgetLimit - total);
+      }).toList();
+      if (candidates.isEmpty) break;
+      final pick = candidates.first;
+      final cost = (pick['usesLeftover'] == true) ? 0.0 : pick['estimatedCost'] as double;
+      if (total + cost > budgetLimit && output.isNotEmpty) break;
+      total += cost;
+      used.add(pick['name'].toString().toLowerCase());
+      output.add({
+        'dayIndex': i,
+        'meal': pick['name'],
+        'region': pick['region'],
+        'estimatedCost': cost,
+        'source': pick['source'],
+        'reason': pick['usesLeftover'] == true
+            ? 'Use an available leftover first.'
+            : pick['pantryReady'] == true
+                ? 'Cook from current pantry stock.'
+                : 'Affordable meal that requires shopping.',
+      });
+    }
+    return output;
+  }
+
+  /// Provides transparent, configurable substitution suggestions when an
+  /// ingredient is missing. These are planning suggestions, not recipe claims.
+  static List<String> substitutionSuggestions(String ingredient) {
+    final key = ingredient.trim().toLowerCase();
+    const map = <String, List<String>>{
+      'tomatoes': ['tomato paste', 'red pepper + onion'],
+      'onions': ['shallots', 'leeks'],
+      'plantain': ['cassava', 'yam'],
+      'palm oil': ['vegetable oil'],
+      'beans': ['cowpeas'],
+    };
+    return map[key] ?? [];
+  }
+
+  /// Gas-saving candidates are a heuristic ranking based on the household's
+  /// configured recipe complexity, not a measured fuel-consumption estimate.
+  static List<Map<String, dynamic>> gasEfficiencyCandidates(
+    List<dynamic> meals,
+  ) {
+    final rows = <Map<String, dynamic>>[];
+    for (final raw in meals) {
+      if (raw is! List || raw.length < 3) continue;
+      final name = raw[0].toString();
+      final key = name.toLowerCase();
+      final recipe = recipeFor(name);
+      var load = recipe.length.toDouble();
+      if (key.contains('koki') || key.contains('fufu')) load += 1.5;
+      if (key.contains('rice') || key.contains('beans')) load += 0.5;
+      rows.add({'name': name, 'gasLoad': load});
+    }
+    rows.sort((a, b) =>
+        (a['gasLoad'] as double).compareTo(b['gasLoad'] as double));
+    return rows;
+  }
+
   /// Returns a short deterministic recommendation for the household dashboard.
   static String householdAdvice({
     required int lowStock,
