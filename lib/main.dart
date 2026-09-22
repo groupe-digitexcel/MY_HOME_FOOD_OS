@@ -490,132 +490,34 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       onResult:(SpeechRecognitionResult r){
         input.text=r.recognizedWords;
         if(mounted)setSheet(()=>_transcript=r.recognizedWords);
-        if(r.finalResult){setSheet(()=>_listening=false);_runVoiceCommand(r.recognizedWords);_executeVoiceCommand(r.recognizedWords);}
+        if(r.finalResult){setSheet(()=>_listening=false);_executeVoiceCommand(r.recognizedWords);}
       },
     );
   }
 
   Future<void> _executeVoiceCommand(String command) async {
     final q=command.toLowerCase().trim();
+    if(q.isEmpty)return;
 
     double? parsedQty(){
-      final m=RegExp(r'(\d+(?:[.,]\d+)?)').firstMatch(q);
+      final m=RegExp(r'(\\d+(?:[.,]\\d+)?)').firstMatch(q);
       if(m!=null)return double.tryParse(m.group(1)!.replaceAll(',','.'));
-      const words={'one':1.0,'a':1.0,'an':1.0,'two':2.0,'three':3.0,'four':4.0,'five':5.0,'un':1.0,'une':1.0,'deux':2.0,'trois':3.0,'quatre':4.0,'cinq':5.0};
-      for(final e in words.entries){if(RegExp(r'(^|\s)'+RegExp.escape(e.key)+r'(\s|$)').hasMatch(q))return e.value;}
+      const words={'one':1.0,'a':1.0,'an':1.0,'two':2.0,'three':3.0,'four':4.0,'five':5.0,'one':1.0,'un':1.0,'une':1.0,'deux':2.0,'trois':3.0,'quatre':4.0,'cinq':5.0};
+      for(final e in words.entries){if(RegExp(r'(^|\\s)'+RegExp.escape(e.key)+r'(\\s|$)').hasMatch(q))return e.value;}
       return null;
     }
-
     String parsedUnit(){
-      if(RegExp(r'\bkg\b|kilograms?|kilogrammes?|kilos?').hasMatch(q))return 'kg';
-      if(RegExp(r'\bg\b|grams?|grammes?').hasMatch(q))return 'g';
-      if(RegExp(r'\bl\b|liters?|litres?').hasMatch(q))return 'L';
-      if(RegExp(r'\bml\b|milliliters?|millilitres?').hasMatch(q))return 'ml';
+      if(RegExp(r'\\bkg\\b|kilograms?|kilogrammes?|kilos?').hasMatch(q))return 'kg';
+      if(RegExp(r'\\bg\\b|grams?|grammes?').hasMatch(q))return 'g';
+      if(RegExp(r'\\bml\\b|milliliters?|millilitres?').hasMatch(q))return 'ml';
+      if(RegExp(r'\\bl\\b|liters?|litres?').hasMatch(q))return 'L';
       if(q.contains('bunch')||q.contains('régime')||q.contains('regime'))return 'bunches';
-      if(q.contains('piece')||q.contains('pieces')||q.contains('pièce')||q.contains('pièces'))return 'piece';
-      if(q.contains('bottle')||q.contains('bottles')||q.contains('bouteille')||q.contains('bouteilles'))return 'bottle';
+      if(q.contains('piece')||q.contains('pièce'))return 'piece';
+      if(q.contains('bottle')||q.contains('bouteille'))return 'bottle';
       return '';
     }
-
-    int findItem(){
-      for(var i=0;i<pantry.length;i++){
-        final n=pantry[i]['name'].toString().toLowerCase();
-        if(q.contains(n))return i;
-      }
-      return -1;
-    }
-
-    int findMeal(){
-      for(var i=0;i<meals.length;i++){
-        if(q.contains(meals[i][0].toString().toLowerCase()))return i;
-      }
-      return -1;
-    }
-
-    if(q.contains('gas')||q.contains('gaz')){
-      await _speak((gasLevel*100).toStringAsFixed(0)+'% '+t('gas remaining.','de gaz restant.'));
-      return;
-    }
-    if(q.contains('budget')||q.contains('argent')){
-      await _speak(t('You have ','Il vous reste ')+remaining.toStringAsFixed(0)+' FCFA.');
-      return;
-    }
-    if(q.contains('shopping')||q.contains('achat')){
-      await _speak(shopping.isEmpty?t('Shopping list is clear.','La liste d’achats est vide.'):t('Your shopping list has items to buy.','Votre liste d’achats contient des articles.'));
-      return;
-    }
-
-    if(q.contains('leftover')||q.contains('leftovers')||q.contains('reste')||q.contains('restes')){
-      if(q.contains('use')||q.contains('eat')||q.contains('manger')||q.contains('utiliser')){
-        if(leftovers.isEmpty){
-          await _speak(t('There are no saved leftovers.','Il n’y a aucun reste enregistré.'));
-          return;
-        }
-        final used=leftovers.removeAt(0);
-        await _save();
-        await _speak(t('Used leftover: '+used['name'].toString()+'. Pantry was not charged for a new cooking cycle.', 'Reste utilisé : '+used['name'].toString()+'. Aucun nouveau cycle de cuisson n’a été déduit du stock.'));
-        return;
-      }
-      await _speak(leftovers.isEmpty?t('There are no saved leftovers.','Il n’y a aucun reste enregistré.'):t('Saved leftovers: '+leftovers.map((x)=>x['name'].toString()).join(', ')+'.','Restes enregistrés : '+leftovers.map((x)=>x['name'].toString()).join(', ')+'.'));
-      return;
-    }
-
-    if((q.contains('plan')||q.contains('menu'))&&(q.contains('tomorrow')||q.contains('demain'))){
-      _autoPlan();
-      final tomorrowIndex=DateTime.now().weekday%7;
-      final tomorrow=plan[tomorrowIndex]['meal'].toString();
-      await _speak(t('Tomorrow is planned: '+tomorrow+'.','Demain est planifié : '+tomorrow+'.'));
-      return;
-    }
-
-    if(q.contains('tomorrow')||q.contains('demain')){
-      if(plan.isEmpty)_autoPlan(save:false);
-      final tomorrowIndex=DateTime.now().weekday%7;
-      final tomorrow=plan.isEmpty?'':plan[tomorrowIndex]['meal'].toString();
-      await _speak(tomorrow.isEmpty?t('Tomorrow has no meal planned yet.','Aucun repas n’est encore planifié pour demain.'):t('Tomorrow: '+tomorrow+'.','Demain : '+tomorrow+'.'));
-      return;
-    }
-
-    if(q.contains('snack')||q.contains('goûter')||q.contains('gouter')){
-      final snackIndex=snacks.indexWhere((x)=>x['prepared']!=true);
-      if(q.contains('prepare')||q.contains('prépare')||q.contains('préparer')||q.contains('preparez')){
-        if(snackIndex<0){
-          await _speak(t('All scheduled snacks are already prepared.','Tous les goûters planifiés sont déjà préparés.'));
-          return;
-        }
-        _prepareSnack(snackIndex);
-        final snack=snacks[snackIndex];
-        await _speak(t('Snack prepared for '+snack['child'].toString()+': '+snack['item'].toString()+'.','Goûter préparé pour '+snack['child'].toString()+': '+snack['item'].toString()+'.'));
-        return;
-      }
-      await _speak(snackIndex<0?t('All scheduled snacks are prepared.','Tous les goûters planifiés sont préparés.'):t('Next snack: '+snacks[snackIndex]['item'].toString()+' for '+snacks[snackIndex]['child'].toString()+'.','Prochain goûter : '+snacks[snackIndex]['item'].toString()+' pour '+snacks[snackIndex]['child'].toString()+'.'));
-      return;
-    }
-
-    final mealIndex=findMeal();
-    if(mealIndex>=0 && (q.contains('cook')||q.contains('cuisine')||q.contains('cuisiner')||q.contains('prepare')||q.contains('prépare'))){
-      final mealName=meals[mealIndex][0].toString();
-      final recipe=HouseholdEngine.recipeFor(mealName);
-      if(recipe.isEmpty){
-        await _speak(t('I found '+mealName+', but its recipe is not defined yet.','J’ai trouvé '+mealName+', mais sa recette n’est pas encore définie.'));
-        return;
-      }
-      setState(()=>pantry..clear()..addAll(HouseholdEngine.consumeRecipe(pantry,recipe)));
-      _refreshShopping(save:false);
-      leftovers.add({'name':mealName,'portions':1,'useBy':'Tomorrow'});
-      _useGas(0.05,'Voice cooking: '+mealName);
-      await _save();
-      await _speak(t(mealName+' cooked. Pantry, leftovers and gas were updated.',mealName+' cuisiné. Le stock, les restes et le gaz ont été mis à jour.'));
-      return;
-    }
-
-    final item=findItem();
-    final qty=parsedQty()??1.0;
-    final unit=parsedUnit();
-
-    double storageQuantity(double amount,String spokenUnit,String storageUnit){
-      final a=spokenUnit.toLowerCase();
-      final b=storageUnit.toLowerCase();
+    double convert(double amount,String from,String to){
+      final a=from.toLowerCase(),b=to.toLowerCase();
       if(a.isEmpty||b.isEmpty||a==b)return amount;
       if(a=='g'&&b=='kg')return amount/1000;
       if(a=='kg'&&b=='g')return amount*1000;
@@ -623,56 +525,124 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       if(a=='l'&&b=='ml')return amount*1000;
       return amount;
     }
+    int findItem(){
+      for(var i=0;i<pantry.length;i++){
+        final n=pantry[i]['name'].toString().toLowerCase();
+        if(q.contains(n))return i;
+      }
+      return -1;
+    }
+    int findMeal(){
+      var best=-1; var bestScore=0;
+      for(var i=0;i<meals.length;i++){
+        final name=meals[i][0].toString().toLowerCase();
+        if(q.contains(name))return i;
+        final tokens=name.split(RegExp(r'\\s*[+&]\\s*|\\s+')).where((x)=>x.length>3);
+        final score=tokens.where((x)=>q.contains(x)).length;
+        if(score>bestScore){bestScore=score;best=i;}
+      }
+      return bestScore>0?best:-1;
+    }
+    bool hasAny(List<String> words)=>words.any(q.contains);
 
-    if(item>=0&&(q.contains('buy')||q.contains('bought')||q.contains('purchase')||q.contains('acheter')||q.contains('acheté')||q.contains('achète'))){
-      final name=pantry[item]['name'].toString();
-      final storageUnit=pantry[item]['unit'].toString();
-      final effectiveUnit=unit.isEmpty?storageUnit:unit;
-      final storageQty=storageQuantity(qty,effectiveUnit,storageUnit);
-      setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+storageQty);
-      _refreshShopping(save:false);
-      final priceMatch=RegExp(r'(?:for|cost|prix|coût)\s+(\d[\d .]*)\s*(?:fcfa|f|francs?)?').firstMatch(q);
-      final price=priceMatch==null?null:double.tryParse(priceMatch.group(1)!.replaceAll(RegExp(r'[^0-9]'), ''));
-      _recordPurchase(name,qty,effectiveUnit,price);
-      _refreshShopping(save:false);
-      await _save();
-      final confirmation=price==null
-        ? t(qty.toString()+' '+effectiveUnit+' of '+name+' added to storage. Say the price if you want it recorded.',qty.toString()+' '+effectiveUnit+' de '+name+' ajouté au stock. Dites le prix pour l’enregistrer.')
-        : t('Purchase recorded: '+qty.toString()+' '+effectiveUnit+' of '+name+' for '+price.toStringAsFixed(0)+' FCFA.','Achat enregistré : '+qty.toString()+' '+effectiveUnit+' de '+name+' pour '+price.toStringAsFixed(0)+' FCFA.');
-      await _speak(confirmation);
+    if(hasAny(['gas','gaz'])){
+      await _speak((gasLevel*100).toStringAsFixed(0)+'% '+t('gas remaining.','de gaz restant.')+' '+t('Use batch cooking when the cylinder is low.','Privilégiez la cuisson en lot lorsque le gaz est bas.'));
+      return;
+    }
+    if(hasAny(['budget','argent'])){
+      final days=DateTime(DateTime.now().year,DateTime.now().month+1,0).day-DateTime.now().day+1;
+      final insight=HouseholdEngine.budgetInsight(budget,spent,days.toDouble());
+      setState(()=>tab=4);
+      await _speak(t('Budget remaining: ','Budget restant : ')+insight['remaining'].toStringAsFixed(0)+' FCFA. '+t('Daily ceiling: ','Plafond quotidien : ')+insight['dailyLimit'].toStringAsFixed(0)+' FCFA.','') );
       return;
     }
 
-    if(item>=0&&(q.contains('consume')||q.contains('consommer')||q.contains('use')||q.contains('utilise')||q.contains('utiliser'))){
-      final storageUnit=pantry[item]['unit'].toString();
-      final storageQty=storageQuantity(qty,unit.isEmpty?storageUnit:unit,storageUnit);
-      final current=(pantry[item]['qty'] as num? ?? 0).toDouble();
-      setState(()=>pantry[item]['qty']=max(0,current-storageQty));
-      _refreshShopping();
-      await _speak(t(qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' consumed from '+pantry[item]['name'].toString()+'.',qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' consommé(s) de '+pantry[item]['name'].toString()+'.'));
+    if(hasAny(['what can i cook','what can i make','que puis-je cuisiner','que cuisiner','cuisiner avec','cook with'])){
+      final options=HouseholdEngine.cookableMeals(meals:meals,pantry:pantry,leftovers:leftovers,prioritizeLeftovers:true);
+      if(options.isEmpty){await _speak(t('Nothing in the current meal library can be cooked completely from your available stock. I can plan an affordable meal and build the shopping list.','Aucun repas de la bibliothèque ne peut être cuisiné entièrement avec le stock actuel. Je peux planifier un repas abordable et préparer la liste d’achats.'));return;}
+      final names=options.take(3).map((x)=>x['name'].toString()).join(', ');
+      await _speak(t('You can cook: '+names+'.','Vous pouvez cuisiner : '+names+'.'));
       return;
     }
 
-    if(item>=0&&(q.contains('add')||q.contains('ajoute')||q.contains('ajouter'))){
-      final storageUnit=pantry[item]['unit'].toString();
-      final storageQty=storageQuantity(qty,unit.isEmpty?storageUnit:unit,storageUnit);
-      setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+storageQty);
-      _refreshShopping();
-      await _save();
-      await _speak(t(qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' added to '+pantry[item]['name'].toString()+'.',qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' ajouté(s) à '+pantry[item]['name'].toString()+'.'));
+    if((q.contains('plan')||q.contains('menu'))&&(q.contains('tomorrow')||q.contains('demain'))){
+      final numberMatch=RegExp(r'(?:under|below|less than|moins de|maximum|max)\\s+(\\d[\\d .]*)').firstMatch(q);
+      final ceiling=numberMatch==null?double.infinity:double.tryParse(numberMatch.group(1)!.replaceAll(RegExp(r'[^0-9]'),''))??double.infinity;
+      final result=HouseholdEngine.planDay(meals:meals,pantry:pantry,budgetLimit:ceiling,leftovers:leftovers,prioritizeLeftovers:true);
+      if(result['meal'].toString().isEmpty){await _speak(t('No meal fits that budget ceiling.','Aucun repas ne respecte ce plafond.'));return;}
+      final nextIndex=DateTime.now().weekday%7;
+      final existing=plan.length==7?plan[nextIndex]:null;
+      if(existing==null){_autoPlan(save:false);}
+      if(plan.length==7){setState(()=>plan[nextIndex]={
+        'day':['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][nextIndex],
+        'meal':result['meal'],'region':'Smart plan','estimatedCost':result['estimatedCost'],'leftoverPlan':'Use leftovers first when available.','reason':result['reason']});}
+      _refreshShopping(save:false);await _save();
+      await _speak(t('Tomorrow is planned: '+result['meal'].toString()+'. Estimated meal cost: '+result['estimatedCost'].toStringAsFixed(0)+' FCFA.','Demain est planifié : '+result['meal'].toString()+'. Coût estimé : '+result['estimatedCost'].toStringAsFixed(0)+' FCFA.'));
       return;
     }
 
-    if(q.contains('expire')||q.contains('expir')||q.contains('use soon')||q.contains('bientôt')){
-      final soon=pantry.where((x){
-        final d=DateTime.tryParse(x['useBy']?.toString()??'');
-        return d!=null&&d.difference(DateTime.now()).inDays<=2;
-      }).map((x)=>x['name'].toString()).toList();
-      await _speak(soon.isEmpty?t('Nothing is expiring soon.','Rien n’expire bientôt.'):t('Use soon: ','À utiliser bientôt : ')+soon.join(', '));
+    if(hasAny(['tomorrow','demain'])){
+      if(plan.isEmpty)_autoPlan(save:false);
+      final idx=DateTime.now().weekday%7;
+      final tomorrow=plan.isEmpty?'':plan[idx]['meal'].toString();
+      await _speak(tomorrow.isEmpty?t('Tomorrow has no meal planned yet.','Aucun repas n’est encore planifié pour demain.'):t('Tomorrow: '+tomorrow+'.','Demain : '+tomorrow+'.'));
       return;
     }
 
-    await _speak(t('Try: buy 2 kg rice for 4000 FCFA, consume 1 kg beans, cook Ndolé, check gas, budget, shopping, or expiry.','Essayez : acheter 2 kg de riz pour 4000 FCFA, consommer 1 kg de haricots, cuisiner le Ndolé, vérifier le gaz, le budget, les achats ou les dates limites.'));
+    if(hasAny(['leftover','leftovers','reste','restes'])){
+      if(hasAny(['use','eat','manger','utiliser'])){
+        if(leftovers.isEmpty){await _speak(t('There are no saved leftovers.','Il n’y a aucun reste enregistré.'));return;}
+        final used=leftovers.removeAt(0);await _save();
+        await _speak(t('Using leftover: '+used['name'].toString()+'. No new recipe stock was consumed.','Reste utilisé : '+used['name'].toString()+'. Aucun nouveau stock de recette n’a été consommé.'));return;
+      }
+      await _speak(leftovers.isEmpty?t('There are no saved leftovers.','Il n’y a aucun reste enregistré.'):t('Saved leftovers: '+leftovers.map((x)=>x['name'].toString()).join(', ')+'.','Restes enregistrés : '+leftovers.map((x)=>x['name'].toString()).join(', ')+'.'));return;
+    }
+
+    if(hasAny(['snack','goûter','gouter'])){
+      final i=snacks.indexWhere((x)=>x['prepared']!=true);
+      if(hasAny(['prepare','prépare','préparer'])){
+        if(i<0){await _speak(t('All scheduled snacks are prepared.','Tous les goûters planifiés sont préparés.'));return;}
+        _prepareSnack(i);final s=snacks[i];await _speak(t('Snack prepared for '+s['child'].toString()+': '+s['item'].toString()+'.','Goûter préparé pour '+s['child'].toString()+': '+s['item'].toString()+'.'));return;
+      }
+      await _speak(i<0?t('All scheduled snacks are prepared.','Tous les goûters sont préparés.'):t('Next snack: '+snacks[i]['item'].toString()+' for '+snacks[i]['child'].toString()+'.','Prochain goûter : '+snacks[i]['item'].toString()+' pour '+snacks[i]['child'].toString()+'.'));return;
+    }
+
+    final mealIndex=findMeal();
+    if(mealIndex>=0 && hasAny(['cook','cuisine','cuisiner','prepare','prépare'])){
+      final mealName=meals[mealIndex][0].toString();
+      if(leftovers.isNotEmpty && q.contains('leftover')){leftovers.removeAt(0);await _save();await _speak(t('I used the saved leftover of '+mealName+'.','J’ai utilisé le reste enregistré de '+mealName+'.'));return;}
+      final recipe=HouseholdEngine.recipeFor(mealName);
+      if(recipe.isEmpty){await _speak(t('The recipe for '+mealName+' is not defined yet.','La recette de '+mealName+' n’est pas encore définie.'));return;}
+      setState(()=>pantry..clear()..addAll(HouseholdEngine.consumeRecipe(pantry,recipe)));
+      leftovers.add({'name':mealName,'portions':1,'useBy':'Tomorrow'});_useGas(0.05,'Voice cooking: '+mealName);_refreshShopping(save:false);await _save();
+      await _speak(t(mealName+' cooked. Pantry, leftovers, shopping and gas were updated.',mealName+' cuisiné. Stock, restes, achats et gaz mis à jour.'));return;
+    }
+
+    final item=findItem();
+    final qty=parsedQty()??1.0; final unit=parsedUnit();
+    if(item>=0 && hasAny(['buy','bought','purchase','acheter','acheté','achète'])){
+      final name=pantry[item]['name'].toString();final storageUnit=pantry[item]['unit'].toString();final effectiveUnit=unit.isEmpty?storageUnit:unit;final storageQty=convert(qty,effectiveUnit,storageUnit);
+      setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+storageQty);_refreshShopping(save:false);
+      final priceMatch=RegExp(r'(?:for|cost|prix|coût|à|a)\\s+(\\d[\\d .]*)\\s*(?:fcfa|f|francs?)?').firstMatch(q);
+      final price=priceMatch==null?null:double.tryParse(priceMatch.group(1)!.replaceAll(RegExp(r'[^0-9]'),''));
+      _recordPurchase(name,qty,effectiveUnit,price);_refreshShopping(save:false);await _save();
+      await _speak(price==null?t(qty.toString()+' '+effectiveUnit+' of '+name+' added to storage.',''+qty.toString()+' '+effectiveUnit+' de '+name+' ajouté au stock.'):t('Purchase recorded: '+qty.toString()+' '+effectiveUnit+' of '+name+' for '+price.toStringAsFixed(0)+' FCFA.','Achat enregistré : '+qty.toString()+' '+effectiveUnit+' de '+name+' pour '+price.toStringAsFixed(0)+' FCFA.'));return;
+    }
+    if(item>=0 && hasAny(['consume','consommer','use','utilise','utiliser'])){
+      final storageUnit=pantry[item]['unit'].toString();final storageQty=convert(qty,unit.isEmpty?storageUnit:unit,storageUnit);final current=(pantry[item]['qty'] as num? ?? 0).toDouble();
+      setState(()=>pantry[item]['qty']=max(0,current-storageQty));_refreshShopping(save:false);await _save();await _speak(t(qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' consumed from '+pantry[item]['name'].toString()+'.',qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' consommé(s) de '+pantry[item]['name'].toString()+'.'));return;
+    }
+    if(item>=0 && hasAny(['add','ajoute','ajouter'])){
+      final storageUnit=pantry[item]['unit'].toString();final storageQty=convert(qty,unit.isEmpty?storageUnit:unit,storageUnit);setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+storageQty);_refreshShopping(save:false);await _save();await _speak(t(qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' added to '+pantry[item]['name'].toString()+'.',qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' ajouté(s) à '+pantry[item]['name'].toString()+'.'));return;
+    }
+    if(hasAny(['expire','expir','use soon','bientôt'])){
+      final soon=pantry.where((x){final d=DateTime.tryParse(x['useBy']?.toString()??'');return d!=null&&d.difference(DateTime.now()).inDays<=2;}).map((x)=>x['name'].toString()).toList();
+      await _speak(soon.isEmpty?t('Nothing is expiring soon.','Rien n’expire bientôt.'):t('Use soon: '+soon.join(', '),'À utiliser bientôt : '+soon.join(', ')));return;
+    }
+    if(hasAny(['shopping','achat'])){setState(()=>tab=2);await _speak(shopping.isEmpty?t('Shopping list is clear.','La liste d’achats est vide.'):t('Shopping list has '+shopping.length.toString()+' items.','La liste d’achats contient '+shopping.length.toString()+' articles.'));return;}
+    if(hasAny(['plan','menu','week','semaine'])){_autoPlan();await _speak(t('The weekly menu has been replanned from your current stock and budget.','Le menu hebdomadaire a été replanifié selon le stock et le budget actuels.'));return;}
+    if(hasAny(['care','house','maison','tâche','task'])){setState(()=>tab=3);await _speak(t('I opened house care.','J’ai ouvert l’entretien de la maison.'));return;}
+    await _speak(t('Try: what can I cook, plan tomorrow under 3000 FCFA, use leftovers, buy 2 kg rice for 4000 FCFA, consume 500 g beans, or check gas.','Essayez : que puis-je cuisiner, planifier demain sous 3000 FCFA, utiliser les restes, acheter 2 kg de riz pour 4000 FCFA, consommer 500 g de haricots ou vérifier le gaz.'));
   }
 
   Future<void> _speak(String text) async {
