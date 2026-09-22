@@ -9,7 +9,7 @@ on:
 
 jobs:
   flutter-quality:
-    name: Flutter quality gate
+    name: Flutter quality + Android
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,9 +30,6 @@ jobs:
 
       - name: Unit and widget tests
         run: flutter test --coverage
-
-      - name: Build Windows release
-        run: flutter build windows --release
 
       - name: Generate Android platform
         run: flutter create --platforms=android --project-name my_home_food_os .
@@ -66,3 +63,30 @@ jobs:
           name: my-home-food-os-coverage
           path: coverage/lcov.info
           if-no-files-found: warn
+
+  windows-release:
+    name: Windows release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.5"
+          channel: stable
+          cache: true
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Upload Windows release
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-home-food-os-windows-verified
+          path: build/windows/x64/runner/Release/**
+          if-no-files-found: error
