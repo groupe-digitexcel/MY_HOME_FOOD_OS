@@ -38,14 +38,16 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   final shopping = <Map<String,dynamic>>[];
   final purchaseHistory = <Map<String,dynamic>>[];
   final leftovers = <Map<String,dynamic>>[];
-  final snacks = <String>['banana + bread + water'];
+  final snacks = <Map<String,dynamic>>[
+    {'child':'Child 1','day':'Mon','item':'banana + bread + water','qty':1,'cost':500.0,'prepared':false},
+  ];
   final tasks = <Map<String,dynamic>>[
     {'task':'Sweep & mop','done':false},{'task':'Clean kitchen','done':false},{'task':'Clean fridge','done':false},{'task':'Check gas cylinder','done':false},{'task':'Laundry','done':false},
   ];
 
   @override void initState(){super.initState();_load();}
-  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),ph=p.getString('purchaseHistory'),lo=p.getString('leftovers'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(ph!=null){final x=jsonDecode(ph) as List; purchaseHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
-  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('purchaseHistory',jsonEncode(purchaseHistory)); await p.setString('leftovers',jsonEncode(leftovers)); }
+  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),ph=p.getString('purchaseHistory'),sn=p.getString('snacks'),lo=p.getString('leftovers'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(ph!=null){final x=jsonDecode(ph) as List; purchaseHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sn!=null){final x=jsonDecode(sn) as List; snacks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
+  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('purchaseHistory',jsonEncode(purchaseHistory)); await p.setString('snacks',jsonEncode(snacks)); await p.setString('leftovers',jsonEncode(leftovers)); }
   String t(String en,String fr)=>lang=='FR'?fr:en;
   double get remaining=>budget-spent;
   int get lowStock=>pantry.where((x)=>x['qty']<=x['min']).length;
@@ -105,10 +107,15 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     const SizedBox(height:12),
     _card(t('Today','Aujourd’hui'),[
       _line(Icons.restaurant,t('Lunch: ','Déjeuner : ')+_todayMeal()),
-      _line(Icons.school,t('School snack: ','Goûter école : ')+snacks.first),
+      _line(Icons.school,t('School snack: ','Goûter école : ')+(snacks.isEmpty?'—':snacks.first['item'].toString())),
       _line(Icons.nightlight,t('Dinner: ','Dîner : ')+_dinnerMeal()),
       const SizedBox(height:6),
       FilledButton.icon(onPressed:_cookTodayLunch,icon:const Icon(Icons.soup_kitchen),label:Text(t('Cook & consume lunch','Cuisiner & consommer le déjeuner'))),
+    ]),
+    const SizedBox(height:12),
+    _card(t('School snack plan','Plan des goûters'),[
+      for(final s in snacks.take(5)) _line(Icons.school,s['child'].toString()+' • '+s['day'].toString()+' • '+s['item'].toString()),
+      TextButton.icon(onPressed:()=>showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('School snacks','Goûters scolaires')),content:_snackPage())),icon:const Icon(Icons.edit),label:Text(t('Manage snacks','Gérer les goûters')))
     ]),
     const SizedBox(height:12),
     _card(t('Smart household insight','Conseil intelligent'),[_line(Icons.auto_awesome,lowStock>0?t('Some food is running low. Add it to shopping.','Certains aliments diminuent. Ajoutez-les aux achats.'):t('Stock is healthy. Reuse planned leftovers before cooking new food.','Le stock est bon. Utilisez les restes avant de cuisiner autre chose.'))]),
@@ -132,6 +139,38 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     const SizedBox(height:12),Text(t('Cameroon meal library','Bibliothèque de repas camerounais'),style:const TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
     ...meals.map((m)=>Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.restaurant)),title:Text(m[0] as String),subtitle:Text(m[1].toString()+' • '+m[2].toString()+' FCFA'),trailing:IconButton(icon:const Icon(Icons.add_circle),onPressed:()=>_addExpense((m[2] as num).toDouble())))))
   ]);
+
+  Widget _snackPage()=>ListView(padding:const EdgeInsets.all(16),children:[
+    Text(t('School snacks','Goûters scolaires'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
+    const SizedBox(height:10),
+    _card(t('Weekly snack plan','Plan hebdomadaire des goûters'),[
+      ...snacks.map((x)=>CheckboxListTile(
+        value:x['prepared']==true,
+        onChanged:(v){setState(()=>x['prepared']=v??false);_save();},
+        title:Text(x['child'].toString()+' • '+x['day'].toString()),
+        subtitle:Text(x['item'].toString()+' • '+x['qty'].toString()+' • '+x['cost'].toString()+' FCFA'),
+      ))
+    ]),
+    FilledButton.icon(onPressed:_showAddSnack,icon:const Icon(Icons.add),label:Text(t('Add school snack','Ajouter un goûter')))
+  ]);
+
+  void _showAddSnack(){
+    final item=TextEditingController(), child=TextEditingController(text:'Child 1'), cost=TextEditingController(text:'500'), qty=TextEditingController(text:'1');
+    showDialog(context:context,builder:(dialogContext)=>AlertDialog(
+      title:Text(t('Add school snack','Ajouter un goûter scolaire')),
+      content:Column(mainAxisSize:MainAxisSize.min,children:[
+        TextField(controller:child,decoration:InputDecoration(labelText:t('Child','Enfant'))),
+        TextField(controller:item,decoration:InputDecoration(labelText:t('Snack','Goûter'))),
+        TextField(controller:qty,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Quantity','Quantité'))),
+        TextField(controller:cost,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Cost FCFA','Coût FCFA'))),
+      ]),
+      actions:[TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
+        FilledButton(onPressed:(){
+          setState(()=>snacks.add({'child':child.text.trim().isEmpty?'Child 1':child.text.trim(),'day':['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][snacks.length%7],'item':item.text.trim(),'qty':double.tryParse(qty.text)||1,'cost':double.tryParse(cost.text)||0.0,'prepared':false}));
+          _save();Navigator.pop(dialogContext);
+        },child:Text(t('Add','Ajouter')))]
+    ));
+  }
 
   Widget _storagePage()=>ListView(padding:const EdgeInsets.all(16),children:[
     Text(t('Pantry & freezer','Garde-manger & congélateur'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),const SizedBox(height:10),
