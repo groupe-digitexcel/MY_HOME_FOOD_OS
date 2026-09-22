@@ -202,6 +202,68 @@ class HouseholdEngine {
     return used.clamp(0, capacity);
   }
 
+  /// Returns meals whose starter recipe can be made from the current pantry.
+  /// A meal is considered cookable only when every recipe ingredient is available
+  /// in the required quantity and compatible units.
+  static List<Map<String, dynamic>> cookableMeals({
+    required List<dynamic> meals,
+    required List<Map<String, dynamic>> pantry,
+    double budgetLimit = double.infinity,
+    bool prioritizeLeftovers = false,
+    List<Map<String, dynamic>> leftovers = const [],
+  }) {
+    final result=<Map<String,dynamic>>[];
+    for(final raw in meals){
+      if(raw is! List || raw.length<3) continue;
+      final name=raw[0].toString();
+      final recipe=recipeFor(name);
+      if(recipe.isEmpty) continue;
+      var ok=true;
+      var missing=0.0;
+      for(final ingredient in recipe){
+        final item=pantry.where((x)=>x['name'].toString().trim().toLowerCase()==ingredient['name'].toString().trim().toLowerCase()).firstOrNull;
+        final required=(ingredient['qty'] as num? ?? 0).toDouble();
+        final available=(item?['qty'] as num? ?? 0).toDouble();
+        if(available<required){ok=false;missing+=required-available;}
+      }
+      final cost=(raw[2] as num).toDouble();
+      if(ok && cost<=budgetLimit){
+        final usesLeftover=leftovers.any((x)=>x['name'].toString().toLowerCase().contains(name.toLowerCase())||name.toLowerCase().contains(x['name'].toString().toLowerCase()));
+        result.add({'name':name,'region':raw[1].toString(),'estimatedCost':cost,'usesLeftover':usesLeftover,'missingQty':missing});
+      }
+    }
+    result.sort((a,b){
+      if(prioritizeLeftovers && a['usesLeftover']!=b['usesLeftover']) return (a['usesLeftover']==true)?-1:1;
+      return (a['estimatedCost'] as double).compareTo(b['estimatedCost'] as double);
+    });
+    return result;
+  }
+
+  /// Builds a one-day plan while respecting a spending ceiling and, when
+  /// possible, prioritizing leftovers and meals already supported by stock.
+  static Map<String,dynamic> planDay({
+    required List<dynamic> meals,
+    required List<Map<String,dynamic>> pantry,
+    required double budgetLimit,
+    List<Map<String,dynamic>> leftovers = const [],
+    bool prioritizeLeftovers = true,
+  }) {
+    if(leftovers.isNotEmpty && prioritizeLeftovers){
+      return {'meal':leftovers.first['name'].toString(),'estimatedCost':0.0,'source':'leftover','reason':'Use saved leftovers before buying or cooking again.'};
+    }
+    final cookable=cookableMeals(meals:meals,pantry:pantry,budgetLimit:budgetLimit,prioritizeLeftovers:prioritizeLeftovers,leftovers:leftovers);
+    if(cookable.isNotEmpty){
+      final pick=cookable.first;
+      return {'meal':pick['name'],'estimatedCost':pick['estimatedCost'],'source':'pantry','reason':'Ingredients are already available within the budget ceiling.'};
+    }
+    final affordable=meals.where((m)=>m is List && m.length>=3 && (m[2] as num).toDouble()<=budgetLimit).toList();
+    if(affordable.isNotEmpty){
+      final m=affordable.first as List;
+      return {'meal':m[0].toString(),'estimatedCost':(m[2] as num).toDouble(),'source':'shopping','reason':'Affordable meal; some ingredients may need to be purchased.'};
+    }
+    return {'meal':'','estimatedCost':0.0,'source':'none','reason':'No meal in the library fits the requested budget.'};
+  }
+
   /// Returns a short deterministic recommendation for the household dashboard.
   static String householdAdvice({
     required int lowStock,
