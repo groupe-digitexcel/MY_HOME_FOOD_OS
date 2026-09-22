@@ -30,9 +30,9 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ['Cornchaff','Southwest',3500], ['Fufu corn + okra soup','Centre',3500],
   ];
   final pantry = <Map<String,dynamic>>[
-    {'name':'Rice','qty':5.0,'unit':'kg','min':2.0}, {'name':'Beans','qty':3.0,'unit':'kg','min':1.0},
-    {'name':'Plantain','qty':8.0,'unit':'bunches','min':2.0}, {'name':'Palm oil','qty':1.5,'unit':'L','min':0.5},
-    {'name':'Tomatoes','qty':1.0,'unit':'kg','min':1.0}, {'name':'Onions','qty':1.2,'unit':'kg','min':0.5},
+    {'name':'Rice','qty':5.0,'unit':'kg','min':2.0,'location':'Dry store','useBy':'2027-01-01'}, {'name':'Beans','qty':3.0,'unit':'kg','min':1.0,'location':'Dry store','useBy':'2027-01-01'},
+    {'name':'Plantain','qty':8.0,'unit':'bunches','min':2.0,'location':'Fridge','useBy':'2026-10-01'}, {'name':'Palm oil','qty':1.5,'unit':'L','min':0.5,'location':'Dry store','useBy':'2027-03-01'},
+    {'name':'Tomatoes','qty':1.0,'unit':'kg','min':1.0,'location':'Fridge','useBy':'2026-09-28'}, {'name':'Onions','qty':1.2,'unit':'kg','min':0.5,'location':'Dry store','useBy':'2026-10-15'},
   ];
   final plan = <Map<String,dynamic>>[];
   final shopping = <Map<String,dynamic>>[];
@@ -208,18 +208,31 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   }
 
   Widget _storagePage()=>ListView(padding:const EdgeInsets.all(16),children:[
-    Text(t('Pantry & freezer','Garde-manger & congélateur'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),const SizedBox(height:10),
-    _card(t('Stock status','État du stock'),[_line(Icons.ac_unit,t('Freezer capacity: 65% used','Capacité congélateur : 65% utilisée')),_line(Icons.shopping_cart,lowStock.toString()+' '+t('items need shopping','articles nécessitent des achats'))]),
-    ...pantry.map((x)=>Card(child:ListTile(title:Text(x['name'].toString()),subtitle:Text(x['qty'].toString()+' '+x['unit'].toString()),trailing:x['qty']<=x['min']?const Chip(label:Text('BUY')):const Icon(Icons.check_circle,color:Colors.green)))),
-    if(shopping.isNotEmpty)_card(t('Live shopping list','Liste d’achats dynamique'),[
-      for(var i=0;i<shopping.length;i++)CheckboxListTile(
-        value:shopping[i]['purchased']==true,
-        onChanged:(v)=>_purchaseShopping(i,v??false),
-        title:Text(shopping[i]['name'].toString()),
-        subtitle:Text(shopping[i]['suggestedQty'].toString()+' '+shopping[i]['unit'].toString()+' • '+shopping[i]['priority'].toString()),
-      )
+    Text(t('Pantry, fridge & freezer','Garde-manger, frigo & congélateur'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
+    const SizedBox(height:10),
+    _card(t('Storage intelligence','Intelligence du stockage'),[
+      _line(Icons.inventory_2,t('Dry store: long-life goods','Garde-manger : produits longue conservation')),
+      _line(Icons.kitchen,t('Fridge: short-life fresh food','Frigo : produits frais à courte durée')),
+      _line(Icons.ac_unit,t('Freezer: batch-cooked and frozen food','Congélateur : plats préparés et aliments congelés')),
+      _line(Icons.shopping_cart,lowStock.toString()+' '+t('items need shopping','articles nécessitent des achats')),
     ]),
-    FilledButton.icon(onPressed:_showAddStock,icon:const Icon(Icons.add),label:Text(t('Add stock','Ajouter stock'))),FilledButton.icon(onPressed:_showAddMeal,icon:const Icon(Icons.restaurant_menu),label:Text(t('Add meal','Ajouter un repas')))
+    ...pantry.map((x){
+      final useBy=x['useBy']?.toString() ?? '';
+      final d=DateTime.tryParse(useBy);
+      final days=d==null?999:d.difference(DateTime.now()).inDays;
+      final exp=days<=2;
+      return Card(child:ListTile(
+        leading:Icon(x['location']=='Freezer'?Icons.ac_unit:x['location']=='Fridge'?Icons.kitchen:Icons.inventory_2),
+        title:Text(x['name'].toString()),
+        subtitle:Text(x['qty'].toString()+' '+x['unit'].toString()+' • '+x['location'].toString()+' • '+(useBy.isEmpty?'No use-by':useBy)),
+        trailing:exp?Chip(label:Text(days<0?t('EXPIRED','EXPIRÉ'):t('USE SOON','À UTILISER'))):x['qty']<=x['min']?const Chip(label:Text('BUY')):const Icon(Icons.check_circle,color:Colors.green),
+      ));
+    }),
+    if(shopping.isNotEmpty)_card(t('Live shopping list','Liste d’achats dynamique'),[
+      for(var i=0;i<shopping.length;i++)CheckboxListTile(value:shopping[i]['purchased']==true,onChanged:(v)=>_purchaseShopping(i,v??false),title:Text(shopping[i]['name'].toString()),subtitle:Text(shopping[i]['suggestedQty'].toString()+' '+shopping[i]['unit'].toString()+' • '+shopping[i]['priority'].toString()))
+    ]),
+    FilledButton.icon(onPressed:_showAddStock,icon:const Icon(Icons.add),label:Text(t('Add stock','Ajouter stock'))),
+    FilledButton.icon(onPressed:_showAddMeal,icon:const Icon(Icons.restaurant_menu),label:Text(t('Add meal','Ajouter un repas')))
   ]);
 
   Widget _carePage()=>ListView(padding:const EdgeInsets.all(16),children:[
