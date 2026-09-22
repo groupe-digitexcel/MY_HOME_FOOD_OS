@@ -109,14 +109,75 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   void _addExpense(double amount){setState(()=>spent+=amount);_save();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(amount.toStringAsFixed(0)+' FCFA '+t('added to food spending','ajoutés aux dépenses nourriture'))));}
   void _showAddStock(){final c=TextEditingController();showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('Add pantry item','Ajouter un article')),content:TextField(controller:c,decoration:InputDecoration(labelText:t('Name','Nom'))),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text(t('Cancel','Annuler'))),FilledButton(onPressed:(){if(c.text.trim().isNotEmpty)setState(()=>pantry.add({'name':c.text.trim(),'qty':1.0,'unit':'item','min':0.0}));Navigator.pop(context);},child:Text(t('Add','Ajouter')))]));}
-  void _showCopilot(){showModalBottomSheet(context:context,isScrollControlled:true,showDragHandle:true,builder:(_)=>Padding(padding:EdgeInsets.only(left:18,right:18,top:8,bottom:MediaQuery.of(context).viewInsets.bottom+20),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-    Row(children:[const CircleAvatar(child:Icon(Icons.auto_awesome)),const SizedBox(width:10),Text(t('Home Copilot','Copilote Maison'),style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800))]),const SizedBox(height:12),
-    Text(t('Work with local household data. Try: “Plan tomorrow with what we have”, “What is running out?”, or “Keep this week under 60,000 FCFA”.','Travaillez avec les données locales. Essayez : « Planifie demain avec ce que nous avons », « Qu’est-ce qui finit ? » ou « Garde la semaine sous 60 000 FCFA ».')),
-    const SizedBox(height:14),
-    Wrap(spacing:8,runSpacing:8,children:[
-      ActionChip(label:Text(t('Plan tomorrow','Planifier demain')),onPressed:(){Navigator.pop(context);setState(()=>tab=1);}),
-      ActionChip(label:Text(t('Shopping list','Liste d’achats')),onPressed:(){Navigator.pop(context);setState(()=>tab=2);}),
-      ActionChip(label:Text(t('Budget check','Vérifier budget')),onPressed:(){Navigator.pop(context);setState(()=>tab=4);})
-    ])
-  ]));}
+  void _showCopilot() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 18,
+            right: 18,
+            top: 8,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const CircleAvatar(child: Icon(Icons.auto_awesome)),
+                  const SizedBox(width: 10),
+                  Text(
+                    t('Home Copilot', 'Copilote Maison'),
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                t(
+                  'Work with local household data. Try: “Plan tomorrow with what we have”, “What is running out?”, or “Keep this week under 60,000 FCFA”.',
+                  'Travaillez avec les données locales. Essayez : « Planifie demain avec ce que nous avons », « Qu’est-ce qui finit ? » ou « Garde la semaine sous 60 000 FCFA ».',
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ActionChip(
+                    label: Text(t('Plan tomorrow', 'Planifier demain')),
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      setState(() => tab = 1);
+                    },
+                  ),
+                  ActionChip(
+                    label: Text(t('Shopping list', 'Liste d’achats')),
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      setState(() => tab = 2);
+                    },
+                  ),
+                  ActionChip(
+                    label: Text(t('Budget check', 'Vérifier budget')),
+                    onPressed: () {
+                      Navigator.pop(sheetContext);
+                      setState(() => tab = 4);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
