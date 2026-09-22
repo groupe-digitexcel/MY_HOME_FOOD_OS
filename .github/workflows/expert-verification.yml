@@ -1,0 +1,68 @@
+name: Expert Verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  flutter-quality:
+    name: Flutter quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.5"
+          channel: stable
+          cache: true
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze --fatal-infos
+
+      - name: Unit and widget tests
+        run: flutter test --coverage
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Generate Android platform
+        run: flutter create --platforms=android --project-name my_home_food_os .
+
+      - name: Configure microphone permission
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+          permission = '    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n'
+          if "android.permission.RECORD_AUDIO" not in s:
+              s = s.replace('<application', permission + '    <application', 1)
+          p.write_text(s)
+          PY
+
+      - name: Build Android release
+        run: flutter build apk --release
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-home-food-os-android-verified
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-home-food-os-coverage
+          path: coverage/lcov.info
+          if-no-files-found: warn
