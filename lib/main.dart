@@ -228,7 +228,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         TextField(controller:q,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Quantity','Quantité'))),
         TextField(controller:min,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Minimum stock','Stock minimum'))),
         DropdownButtonFormField<String>(
-          value:location,
+          initialValue:location,
           items:['Dry store','Fridge','Freezer'].map((x)=>DropdownMenuItem(value:x,child:Text(x))).toList(),
           onChanged:(v){if(v!=null)setDialogState(()=>location=v);},
           decoration:InputDecoration(labelText:t('Location','Emplacement')),
@@ -364,17 +364,6 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ])
   ]);
 
-  List<String> _ingredientsForMeal(String name){
-    final q=name.toLowerCase();
-    if(q.contains('ndolé')) return ['Plantain','Palm oil'];
-    if(q.contains('eru')) return ['Palm oil'];
-    if(q.contains('koki')) return ['Beans','Plantain','Palm oil'];
-    if(q.contains('rice')) return ['Rice','Tomatoes'];
-    if(q.contains('beans')) return ['Beans','Plantain','Onions'];
-    if(q.contains('cornchaff')) return ['Beans','Palm oil'];
-    if(q.contains('fufu corn')) return ['Palm oil'];
-    return [];
-  }
   void _useGas(double amount,String activity){
     if(amount<=0)return;
     setState(()=>gasLevel=(gasLevel-amount).clamp(0,gasCapacity));
@@ -387,7 +376,6 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     final usingLeftover=leftovers.isNotEmpty && leftovers.first['name'].toString()==meal;
     if(plan.isEmpty && !usingLeftover || meal=='Plan your week') return;
     final recipe=HouseholdEngine.recipeFor(meal);
-    final ingredients=recipe.map((x)=>x['name']).toList();
     if(recipe.isNotEmpty){
       final next=HouseholdEngine.consumeRecipe(pantry,recipe);
       setState(()=>pantry..clear()..addAll(next));
