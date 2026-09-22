@@ -55,6 +55,66 @@ class HouseholdEngine {
     }).toList();
   }
 
+  /// Standard starter recipe quantities for the built-in Cameroon meal library.
+  /// Quantities are household planning units, not nutrition claims.
+  static List<Map<String, dynamic>> recipeFor(String meal) {
+    final key = meal.toLowerCase();
+    if (key.contains('ndolé')) return [
+      {'name':'Plantain','qty':2.0,'unit':'bunches'},
+      {'name':'Palm oil','qty':0.25,'unit':'L'},
+    ];
+    if (key.contains('eru')) return [
+      {'name':'Palm oil','qty':0.25,'unit':'L'},
+      {'name':'Plantain','qty':2.0,'unit':'bunches'},
+    ];
+    if (key.contains('koki')) return [
+      {'name':'Beans','qty':0.5,'unit':'kg'},
+      {'name':'Plantain','qty':2.0,'unit':'bunches'},
+      {'name':'Palm oil','qty':0.2,'unit':'L'},
+    ];
+    if (key.contains('achombo')) return [
+      {'name':'Plantain','qty':2.0,'unit':'bunches'},
+      {'name':'Tomatoes','qty':0.5,'unit':'kg'},
+      {'name':'Onions','qty':0.25,'unit':'kg'},
+    ];
+    if (key.contains('rice')) return [
+      {'name':'Rice','qty':0.5,'unit':'kg'},
+      {'name':'Tomatoes','qty':0.5,'unit':'kg'},
+      {'name':'Onions','qty':0.25,'unit':'kg'},
+    ];
+    if (key.contains('beans')) return [
+      {'name':'Beans','qty':0.5,'unit':'kg'},
+      {'name':'Plantain','qty':2.0,'unit':'bunches'},
+      {'name':'Onions','qty':0.25,'unit':'kg'},
+    ];
+    if (key.contains('cornchaff')) return [
+      {'name':'Beans','qty':0.5,'unit':'kg'},
+      {'name':'Palm oil','qty':0.2,'unit':'L'},
+    ];
+    if (key.contains('fufu corn')) return [
+      {'name':'Palm oil','qty':0.2,'unit':'L'},
+      {'name':'Onions','qty':0.25,'unit':'kg'},
+    ];
+    return [];
+  }
+
+  /// Consumes the exact recipe quantities available in pantry.
+  static List<Map<String, dynamic>> consumeRecipe(
+    List<Map<String, dynamic>> pantry,
+    List<Map<String, dynamic>> recipe,
+  ) {
+    final next = pantry.map((x) => Map<String, dynamic>.from(x)).toList();
+    for (final ingredient in recipe) {
+      final name = ingredient['name'].toString().trim().toLowerCase();
+      final index = next.indexWhere((x) => x['name'].toString().trim().toLowerCase() == name);
+      if (index < 0) continue;
+      final current = (next[index]['qty'] as num? ?? 0).toDouble();
+      final amount = (ingredient['qty'] as num? ?? 0).toDouble();
+      next[index]['qty'] = max(0, current - amount);
+    }
+    return next;
+  }
+
   /// Consumes stock by ingredient name and never lets a quantity become negative.
   static List<Map<String, dynamic>> consumeIngredients(
     List<Map<String, dynamic>> pantry,
