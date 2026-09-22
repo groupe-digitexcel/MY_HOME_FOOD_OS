@@ -16,7 +16,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   int tab = 0;
   String lang = 'EN';
   double budget = 250000, spent = 0;
-  final meals = const [
+  final meals = <List<dynamic>>[
     ['Ndolé + plantain','Littoral',4500], ['Eru + water fufu','Southwest',5000],
     ['Koki + ripe plantain','Centre',3500], ['Achombo + vegetables','West',4000],
     ['Rice + tomato chicken','All',4500], ['Beans + boiled plantain','All',3000],
@@ -34,7 +34,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   @override void initState(){super.initState();_load();}
   Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(mounted)setState((){}); }
-  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); }
+  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); }
   String t(String en,String fr)=>lang=='FR'?fr:en;
   double get remaining=>budget-spent;
   int get lowStock=>pantry.where((x)=>x['qty']<=x['min']).length;
