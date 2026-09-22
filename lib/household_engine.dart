@@ -41,6 +41,54 @@ class HouseholdEngine {
     return 'Balanced rotation from your local meal library.';
   }
 
+  /// Aggregates exact ingredient requirements for a weekly meal plan.
+  static List<Map<String, dynamic>> weeklyRequirements(
+    List<Map<String, dynamic>> plan,
+  ) {
+    final totals=<String,Map<String,dynamic>>{};
+    for(final day in plan){
+      final meal=day['meal']?.toString() ?? '';
+      for(final ingredient in recipeFor(meal)){
+        final name=ingredient['name'].toString();
+        final key=name.toLowerCase();
+        final qty=(ingredient['qty'] as num? ?? 0).toDouble();
+        final unit=ingredient['unit'].toString();
+        final row=totals[key] ?? {'name':name,'requiredQty':0.0,'unit':unit};
+        row['requiredQty']=(row['requiredQty'] as double)+qty;
+        totals[key]=row;
+      }
+    }
+    return totals.values.toList();
+  }
+
+  /// Converts weekly requirements into the quantities that must be purchased
+  /// after subtracting usable pantry stock.
+  static List<Map<String, dynamic>> weeklyShopping(
+    List<Map<String, dynamic>> plan,
+    List<Map<String, dynamic>> pantry,
+  ) {
+    final requirements=weeklyRequirements(plan);
+    return requirements.where((r){
+      final name=r['name'].toString().toLowerCase();
+      final p=pantry.firstWhere((x)=>x['name'].toString().toLowerCase()==name,orElse:()=>{});
+      final stock=(p['qty'] as num? ?? 0).toDouble();
+      return (r['requiredQty'] as double)>stock;
+    }).map((r){
+      final name=r['name'].toString().toLowerCase();
+      final p=pantry.firstWhere((x)=>x['name'].toString().toLowerCase()==name,orElse:()=>{});
+      final stock=(p['qty'] as num? ?? 0).toDouble();
+      return {
+        'name':r['name'],
+        'unit':r['unit'],
+        'requiredQty':r['requiredQty'],
+        'stockQty':stock,
+        'purchaseQty':(r['requiredQty'] as double)-stock,
+        'priority':'planned',
+        'purchased':false,
+      };
+    }).toList();
+  }
+
   static List<Map<String, dynamic>> shoppingList(List<Map<String, dynamic>> pantry) {
     return pantry.where((x) => (x['qty'] as num? ?? 0) <= (x['min'] as num? ?? 0)).map((x) {
       final min = (x['min'] as num? ?? 0).toDouble();
