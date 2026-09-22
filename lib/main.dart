@@ -207,6 +207,65 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ));
   }
 
+  void _editStock(int index){
+    if(index<0||index>=pantry.length)return;
+    final item=pantry[index];
+    final q=TextEditingController(text:item['qty'].toString());
+    final min=TextEditingController(text:item['min'].toString());
+    final useBy=TextEditingController(text:item['useBy']?.toString()??'');
+    String location=item['location']?.toString()??'Dry store';
+    showDialog(context:context,builder:(dialogContext)=>StatefulBuilder(builder:(context,setDialogState)=>AlertDialog(
+      title:Text(t('Edit storage item','Modifier le stock')),
+      content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+        Text(item['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),
+        TextField(controller:q,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Quantity','Quantité'))),
+        TextField(controller:min,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Minimum stock','Stock minimum'))),
+        DropdownButtonFormField<String>(
+          value:location,
+          items:['Dry store','Fridge','Freezer'].map((x)=>DropdownMenuItem(value:x,child:Text(x))).toList(),
+          onChanged:(v){if(v!=null)setDialogState(()=>location=v);},
+          decoration:InputDecoration(labelText:t('Location','Emplacement')),
+        ),
+        TextField(controller:useBy,decoration:InputDecoration(labelText:t('Use-by date YYYY-MM-DD','Date limite AAAA-MM-JJ'))),
+      ])),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
+        FilledButton(onPressed:(){
+          setState((){
+            item['qty']=double.tryParse(q.text)||0;
+            item['min']=double.tryParse(min.text)||0;
+            item['location']=location;
+            item['useBy']=useBy.text.trim();
+          });
+          _refreshShopping(save:false);_save();Navigator.pop(dialogContext);
+        },child:Text(t('Save','Enregistrer')))
+      ],
+    )));
+  }
+
+  void _consumeStock(int index){
+    if(index<0||index>=pantry.length)return;
+    final q=TextEditingController(text:'1');
+    showDialog(context:context,builder:(dialogContext)=>AlertDialog(
+      title:Text(t('Consume stock','Consommer le stock')),
+      content:TextField(controller:q,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Quantity to consume','Quantité à consommer'))),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
+        FilledButton(onPressed:(){
+          final amount=double.tryParse(q.text)||0;
+          setState(()=>pantry[index]['qty']=max(0,(pantry[index]['qty'] as num? ?? 0).toDouble()-amount));
+          _refreshShopping(save:false);_save();Navigator.pop(dialogContext);
+        },child:Text(t('Consume','Consommer')))
+      ],
+    ));
+  }
+
+  void _deleteStock(int index){
+    if(index<0||index>=pantry.length)return;
+    setState(()=>pantry.removeAt(index));_refreshShopping(save:false);_save();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Item removed from storage.','Article retiré du stock.'))));
+  }
+
   Widget _storagePage()=>ListView(padding:const EdgeInsets.all(16),children:[
     Text(t('Pantry, fridge & freezer','Garde-manger, frigo & congélateur'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
     const SizedBox(height:10),
@@ -225,7 +284,12 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         leading:Icon(x['location']=='Freezer'?Icons.ac_unit:x['location']=='Fridge'?Icons.kitchen:Icons.inventory_2),
         title:Text(x['name'].toString()),
         subtitle:Text(x['qty'].toString()+' '+x['unit'].toString()+' • '+x['location'].toString()+' • '+(useBy.isEmpty?'No use-by':useBy)),
-        trailing:exp?Chip(label:Text(days<0?t('EXPIRED','EXPIRÉ'):t('USE SOON','À UTILISER'))):x['qty']<=x['min']?const Chip(label:Text('BUY')):const Icon(Icons.check_circle,color:Colors.green),
+        trailing:Row(mainAxisSize:MainAxisSize.min,children:[
+          IconButton(onPressed:()=>_consumeStock(pantry.indexOf(x)),icon:const Icon(Icons.remove_circle_outline)),
+          IconButton(onPressed:()=>_editStock(pantry.indexOf(x)),icon:const Icon(Icons.edit)),
+          IconButton(onPressed:()=>_deleteStock(pantry.indexOf(x)),icon:const Icon(Icons.delete_outline)),
+          exp?Chip(label:Text(days<0?t('EXPIRED','EXPIRÉ'):t('USE SOON','À UTILISER'))):x['qty']<=x['min']?const Chip(label:Text('BUY')):const Icon(Icons.check_circle,color:Colors.green),
+        ]),
       ));
     }),
     if(shopping.isNotEmpty)_card(t('Live shopping list','Liste d’achats dynamique'),[
