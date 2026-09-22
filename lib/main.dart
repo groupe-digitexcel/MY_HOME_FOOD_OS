@@ -48,7 +48,10 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   String t(String en,String fr)=>lang=='FR'?fr:en;
   double get remaining=>budget-spent;
   int get lowStock=>pantry.where((x)=>x['qty']<=x['min']).length;
-  String _todayMeal()=>plan.isEmpty?'Plan your week':plan[DateTime.now().weekday-1]['meal'].toString();
+  String _todayMeal(){
+    if(leftovers.isNotEmpty) return leftovers.first['name'].toString();
+    return plan.isEmpty?'Plan your week':plan[DateTime.now().weekday-1]['meal'].toString();
+  }
   String _dinnerMeal()=>plan.isEmpty?'':plan[DateTime.now().weekday%7]['meal'].toString();
   void _refreshShopping({bool save=true}){final next=HouseholdEngine.shoppingList(pantry);setState((){shopping..clear()..addAll(next);});if(save)_save();}
   void _autoPlan({bool save=true}){final next=HouseholdEngine.generateWeek(meals:meals,pantry:pantry,budgetRemaining:remaining);setState((){plan..clear()..addAll(next);});if(save)_save();}
@@ -148,13 +151,14 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   }
   void _cookTodayLunch(){
     final meal=_todayMeal();
-    if(plan.isEmpty || meal=='Plan your week') return;
+    final usingLeftover=leftovers.isNotEmpty && leftovers.first['name'].toString()==meal;
+    if(plan.isEmpty && !usingLeftover || meal=='Plan your week') return;
     final ingredients=_ingredientsForMeal(meal);
     if(ingredients.isNotEmpty){
       final next=HouseholdEngine.consumeIngredients(pantry,ingredients);
       setState(()=>pantry..clear()..addAll(next));
       _refreshShopping();
-      setState(()=>leftovers.add({'name':meal,'portions':1,'useBy':'Tomorrow'}));
+      setState(()=>usingLeftover ? leftovers.removeAt(0) : leftovers.add({'name':meal,'portions':1,'useBy':'Tomorrow'}));
       _save();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Lunch cooked: pantry updated and a leftover portion saved.','Déjeuner cuisiné : stock mis à jour et une portion de reste enregistrée.'))));
     } else {
