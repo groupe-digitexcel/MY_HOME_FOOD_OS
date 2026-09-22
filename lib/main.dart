@@ -76,6 +76,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       _line(Icons.restaurant,t('Lunch: ','Déjeuner : ')+_todayMeal()),
       _line(Icons.school,t('School snack: ','Goûter école : ')+snacks.first),
       _line(Icons.nightlight,t('Dinner: ','Dîner : ')+_dinnerMeal()),
+      const SizedBox(height:6),
+      FilledButton.icon(onPressed:_cookTodayLunch,icon:const Icon(Icons.soup_kitchen),label:Text(t('Cook & consume lunch','Cuisiner & consommer le déjeuner'))),
     ]),
     const SizedBox(height:12),
     _card(t('Smart household insight','Conseil intelligent'),[_line(Icons.auto_awesome,lowStock>0?t('Some food is running low. Add it to shopping.','Certains aliments diminuent. Ajoutez-les aux achats.'):t('Stock is healthy. Reuse planned leftovers before cooking new food.','Le stock est bon. Utilisez les restes avant de cuisiner autre chose.'))]),
@@ -125,6 +127,32 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ])
   ]);
 
+  List<String> _ingredientsForMeal(String name){
+    final q=name.toLowerCase();
+    if(q.contains('ndolé')) return ['Plantain','Palm oil'];
+    if(q.contains('eru')) return ['Palm oil'];
+    if(q.contains('koki')) return ['Beans','Plantain','Palm oil'];
+    if(q.contains('rice')) return ['Rice','Tomatoes'];
+    if(q.contains('beans')) return ['Beans','Plantain','Onions'];
+    if(q.contains('cornchaff')) return ['Beans','Palm oil'];
+    if(q.contains('fufu corn')) return ['Palm oil'];
+    return [];
+  }
+  void _cookTodayLunch(){
+    final meal=_todayMeal();
+    if(plan.isEmpty || meal=='Plan your week') return;
+    final ingredients=_ingredientsForMeal(meal);
+    if(ingredients.isNotEmpty){
+      final next=HouseholdEngine.consumeIngredients(pantry,ingredients);
+      setState(()=>pantry..clear()..addAll(next));
+      _refreshShopping();
+      setState(()=>leftovers.add({'name':meal,'portions':1,'useBy':'Tomorrow'}));
+      _save();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Lunch cooked: pantry updated and a leftover portion saved.','Déjeuner cuisiné : stock mis à jour et une portion de reste enregistrée.'))));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('No ingredient mapping is defined for this meal yet.','Les ingrédients de ce repas ne sont pas encore définis.'))));
+    }
+  }
   void _addExpense(double amount){setState(()=>spent+=amount);_save();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(amount.toStringAsFixed(0)+' FCFA '+t('added to food spending','ajoutés aux dépenses nourriture'))));}
   void _showAddStock(){final c=TextEditingController();showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('Add pantry item','Ajouter un article')),content:TextField(controller:c,decoration:InputDecoration(labelText:t('Name','Nom'))),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text(t('Cancel','Annuler'))),FilledButton(onPressed:(){if(c.text.trim().isNotEmpty){setState(()=>pantry.add({'name':c.text.trim(),'qty':1.0,'unit':'item','min':0.0}));_refreshShopping();}Navigator.pop(context);},child:Text(t('Add','Ajouter')))]));}
   void _showCopilot() async {
