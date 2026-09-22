@@ -197,21 +197,38 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(index<0||index>=shopping.length)return;
     final item=shopping[index];
     setState(()=>item['purchased']=purchased);
-    if(purchased){
-      final name=item['name'].toString().toLowerCase();
-      final qty=(item['suggestedQty'] as num? ?? 0).toDouble();
-      final pi=pantry.indexWhere((x)=>x['name'].toString().toLowerCase()==name);
-      if(pi>=0){
-        setState(()=>pantry[pi]['qty']=(pantry[pi]['qty'] as num? ?? 0).toDouble()+qty);
-      } else {
-        setState(()=>pantry.add({'name':item['name'],'qty':qty,'unit':item['unit'],'min':0.0}));
-      }
-      _refreshShopping(save:false);
-      _save();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Purchase added to pantry. Add its cost in Expenses if paid now.','Achat ajouté au stock. Ajoutez son coût dans Dépenses si payé maintenant.'))));
+    if(!purchased){_save();return;}
+    final name=item['name'].toString().toLowerCase();
+    final qty=(item['suggestedQty'] as num? ?? 0).toDouble();
+    final pi=pantry.indexWhere((x)=>x['name'].toString().toLowerCase()==name);
+    if(pi>=0){
+      setState(()=>pantry[pi]['qty']=(pantry[pi]['qty'] as num? ?? 0).toDouble()+qty);
     } else {
-      _save();
+      setState(()=>pantry.add({'name':item['name'],'qty':qty,'unit':item['unit'],'min':0.0}));
     }
+    _refreshShopping(save:false);
+    _save();
+    _showPurchaseCost(item['name'].toString());
+  }
+
+  void _showPurchaseCost(String itemName){
+    final c=TextEditingController();
+    showDialog(context:context,builder:(dialogContext)=>AlertDialog(
+      title:Text(t('Record purchase cost','Enregistrer le coût de l’achat')),
+      content:TextField(controller:c,keyboardType:TextInputType.number,decoration:InputDecoration(
+        labelText:t('Amount in FCFA (optional)','Montant en FCFA (facultatif)'),
+      )),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Skip','Ignorer'))),
+        FilledButton(onPressed:(){
+          final amount=double.tryParse(c.text.trim());
+          if(amount!=null && amount>=0){
+            _addExpense(amount);
+          }
+          Navigator.pop(dialogContext);
+        },child:Text(t('Save cost','Enregistrer')))
+      ],
+    ));
   }
 
   void _addExpense(double amount){setState(()=>spent+=amount);_save();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(amount.toStringAsFixed(0)+' FCFA '+t('added to food spending','ajoutés aux dépenses nourriture'))));}
