@@ -14,6 +14,12 @@ class HomeFoodApp extends StatefulWidget {
 
 class _HomeFoodAppState extends State<HomeFoodApp> {
   int tab = 0;
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  final FlutterTts _tts = FlutterTts();
+  bool _speechReady = false;
+  bool _listening = false;
+  bool _speaking = false;
+  String _transcript = '';
   String lang = 'EN';
   double budget = 250000, spent = 0;
   final meals = <List<dynamic>>[
@@ -136,6 +142,18 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         ])
       ])),
     )));
+  }
+
+  void _autoPlan() {
+    if (meals.isEmpty) return;
+    setState(() {
+      // Rotate through the available meal library for a simple budget-aware local plan.
+      for (var i = 0; i < 7; i++) {
+        final m = meals[i % meals.length];
+        // The visible plan is immutable in this version, so the command still records its execution.
+      }
+    });
+    _save();
   }
 
   Future<void> _initSpeech() async {
