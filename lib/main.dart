@@ -597,18 +597,22 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     }
 
     if(item>=0&&(q.contains('consume')||q.contains('consommer')||q.contains('use')||q.contains('utilise')||q.contains('utiliser'))){
+      final storageUnit=pantry[item]['unit'].toString();
+      final storageQty=storageQuantity(qty,unit.isEmpty?storageUnit:unit,storageUnit);
       final current=(pantry[item]['qty'] as num? ?? 0).toDouble();
-      setState(()=>pantry[item]['qty']=max(0,current-qty));
+      setState(()=>pantry[item]['qty']=max(0,current-storageQty));
       _refreshShopping();
-      await _speak(t(qty.toString()+' '+pantry[item]['unit'].toString()+' consumed from '+pantry[item]['name'].toString()+'.',qty.toString()+' '+pantry[item]['unit'].toString()+' consommé(s) de '+pantry[item]['name'].toString()+'.'));
+      await _speak(t(qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' consumed from '+pantry[item]['name'].toString()+'.',qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' consommé(s) de '+pantry[item]['name'].toString()+'.'));
       return;
     }
 
     if(item>=0&&(q.contains('add')||q.contains('ajoute')||q.contains('ajouter'))){
-      setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+qty);
+      final storageUnit=pantry[item]['unit'].toString();
+      final storageQty=storageQuantity(qty,unit.isEmpty?storageUnit:unit,storageUnit);
+      setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+storageQty);
       _refreshShopping();
       await _save();
-      await _speak(t(qty.toString()+' '+pantry[item]['unit'].toString()+' added to '+pantry[item]['name'].toString()+'.',qty.toString()+' '+pantry[item]['unit'].toString()+' ajouté(s) à '+pantry[item]['name'].toString()+'.'));
+      await _speak(t(qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' added to '+pantry[item]['name'].toString()+'.',qty.toString()+' '+(unit.isEmpty?storageUnit:unit)+' ajouté(s) à '+pantry[item]['name'].toString()+'.'));
       return;
     }
 
