@@ -78,6 +78,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Generate Windows platform
+        run: flutter create --platforms=windows --project-name my_home_food_os .
+
       - name: Get packages
         run: flutter pub get
 
