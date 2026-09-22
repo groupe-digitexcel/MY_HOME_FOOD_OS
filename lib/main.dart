@@ -146,13 +146,48 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     _card(t('Weekly snack plan','Plan hebdomadaire des goûters'),[
       ...snacks.map((x)=>CheckboxListTile(
         value:x['prepared']==true,
-        onChanged:(v){setState(()=>x['prepared']=v??false);_save();},
+        onChanged:(v){if(v==true){_prepareSnack(snacks.indexOf(x));}else{setState(()=>x['prepared']=false);_save();}},
         title:Text(x['child'].toString()+' • '+x['day'].toString()),
         subtitle:Text(x['item'].toString()+' • '+x['qty'].toString()+' • '+x['cost'].toString()+' FCFA'),
       ))
     ]),
     FilledButton.icon(onPressed:_showAddSnack,icon:const Icon(Icons.add),label:Text(t('Add school snack','Ajouter un goûter')))
   ]);
+
+  List<Map<String,dynamic>> _snackIngredients(String item){
+    final q=item.toLowerCase();
+    if(q.contains('banana')||q.contains('banane')) return [
+      {'name':'Banana','qty':1.0,'unit':'piece'}
+    ];
+    if(q.contains('bread')||q.contains('pain')) return [
+      {'name':'Bread','qty':1.0,'unit':'piece'}
+    ];
+    if(q.contains('groundnut')||q.contains('arachide')) return [
+      {'name':'Groundnuts','qty':0.1,'unit':'kg'}
+    ];
+    if(q.contains('fruit')||q.contains('fruit')) return [
+      {'name':'Banana','qty':1.0,'unit':'piece'}
+    ];
+    return [];
+  }
+
+  void _prepareSnack(int index){
+    if(index<0||index>=snacks.length)return;
+    final snack=snacks[index];
+    if(snack['prepared']==true)return;
+    final recipe=_snackIngredients(snack['item'].toString());
+    if(recipe.isNotEmpty){
+      setState(()=>pantry..clear()..addAll(HouseholdEngine.consumeRecipe(pantry,recipe)));
+    }
+    final cost=(snack['cost'] as num? ?? 0).toDouble();
+    if(cost>0)_addExpense(cost);
+    setState(()=>snack['prepared']=true);
+    _refreshShopping(save:false);
+    _save();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(
+      t('Snack prepared: pantry and budget updated.','Goûter préparé : stock et budget mis à jour.')
+    )));
+  }
 
   void _showAddSnack(){
     final item=TextEditingController(), child=TextEditingController(text:'Child 1'), cost=TextEditingController(text:'500'), qty=TextEditingController(text:'1');
