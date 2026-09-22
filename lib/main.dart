@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -207,7 +208,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       ]),
       actions:[TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
         FilledButton(onPressed:(){
-          setState(()=>snacks.add({'child':child.text.trim().isEmpty?'Child 1':child.text.trim(),'day':['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][snacks.length%7],'item':item.text.trim(),'qty':double.tryParse(qty.text)||1,'cost':double.tryParse(cost.text)||0.0,'prepared':false}));
+          setState(()=>snacks.add({'child':child.text.trim().isEmpty?'Child 1':child.text.trim(),'day':['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][snacks.length%7],'item':item.text.trim(),'qty':double.tryParse(qty.text) ??1,'cost':double.tryParse(cost.text) ??0.0,'prepared':false}));
           _save();Navigator.pop(dialogContext);
         },child:Text(t('Add','Ajouter')))]
     ));
@@ -238,8 +239,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
         FilledButton(onPressed:(){
           setState((){
-            item['qty']=double.tryParse(q.text)||0;
-            item['min']=double.tryParse(min.text)||0;
+            item['qty']=double.tryParse(q.text) ??0;
+            item['min']=double.tryParse(min.text) ??0;
             item['location']=location;
             item['useBy']=useBy.text.trim();
           });
@@ -258,7 +259,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       actions:[
         TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
         FilledButton(onPressed:(){
-          final amount=double.tryParse(q.text)||0;
+          final amount=double.tryParse(q.text) ??0;
           setState(()=>pantry[index]['qty']=max(0,(pantry[index]['qty'] as num? ?? 0).toDouble()-amount));
           _refreshShopping(save:false);_save();Navigator.pop(dialogContext);
         },child:Text(t('Consume','Consommer')))
@@ -333,8 +334,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       actions:[
         TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
         FilledButton(onPressed:(){
-          final amount=(double.tryParse(fill.text)||0).clamp(0,1);
-          final price=double.tryParse(cost.text)||0;
+          final amount=(double.tryParse(fill.text) ??0).clamp(0,1);
+          final price=double.tryParse(cost.text) ??0;
           setState(()=>gasLevel=(gasLevel+amount).clamp(0,gasCapacity));
           if(price>0){gasSpent+=price;_addExpense(price);}
           gasLogs.insert(0,{'date':DateTime.now().toIso8601String(),'amount':price,'fill':amount});
@@ -350,9 +351,11 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     _metric(t('Food spending','Dépenses nourriture'),spent.toStringAsFixed(0)+' FCFA',Icons.restaurant),
     _metric(t('Remaining','Reste'),remaining.toStringAsFixed(0)+' FCFA',Icons.savings),
     if(purchaseHistory.isNotEmpty)_card(t('Purchase history','Historique des achats'),[
-      ...purchaseHistory.take(12).map((x)=>_line(Icons.receipt_long,
+      ...purchaseHistory.take(12).map((x)=>_line(
+        Icons.receipt_long,
         x['name'].toString()+' — '+x['qty'].toString()+' '+x['unit'].toString()+
-        (((x['cost'] as num?) ?? 0)>0 ? ' • '+((x['cost'] as num).toStringAsFixed(0))+' FCFA' : '')),
+        (((x['cost'] as num?) ?? 0)>0 ? ' • '+((x['cost'] as num).toStringAsFixed(0))+' FCFA' : ''),
+      )),
     ]),
     _card(t('Household intelligence','Intelligence du foyer'),[
       _line(Icons.trending_down,t('Reuse leftovers to reduce repeated cooking.','Réutilisez les restes pour réduire les cuissons répétées.')),
