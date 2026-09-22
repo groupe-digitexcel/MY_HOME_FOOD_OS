@@ -162,7 +162,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(purchaseHistory.isNotEmpty)_card(t('Purchase history','Historique des achats'),[
       ...purchaseHistory.take(12).map((x)=>_line(Icons.receipt_long,
         x['name'].toString()+' — '+x['qty'].toString()+' '+x['unit'].toString()+
-        (x['cost'] as num? ?? 0)>0 ? ' • '+(x['cost'] as num).toStringAsFixed(0)+' FCFA' : '')),
+        (((x['cost'] as num?) ?? 0)>0 ? ' • '+((x['cost'] as num).toStringAsFixed(0))+' FCFA' : '')),
     ]),
     _card(t('Household intelligence','Intelligence du foyer'),[
       _line(Icons.trending_down,t('Reuse leftovers to reduce repeated cooking.','Réutilisez les restes pour réduire les cuissons répétées.')),
