@@ -153,9 +153,10 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     final meal=_todayMeal();
     final usingLeftover=leftovers.isNotEmpty && leftovers.first['name'].toString()==meal;
     if(plan.isEmpty && !usingLeftover || meal=='Plan your week') return;
-    final ingredients=_ingredientsForMeal(meal);
-    if(ingredients.isNotEmpty){
-      final next=HouseholdEngine.consumeIngredients(pantry,ingredients);
+    final recipe=HouseholdEngine.recipeFor(meal);
+    final ingredients=recipe.map((x)=>x['name']).toList();
+    if(recipe.isNotEmpty){
+      final next=HouseholdEngine.consumeRecipe(pantry,recipe);
       setState(()=>pantry..clear()..addAll(next));
       _refreshShopping();
       setState(()=>usingLeftover ? leftovers.removeAt(0) : leftovers.add({'name':meal,'portions':1,'useBy':'Tomorrow'}));
