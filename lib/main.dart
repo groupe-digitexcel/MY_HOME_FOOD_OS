@@ -490,9 +490,27 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       onResult:(SpeechRecognitionResult r){
         input.text=r.recognizedWords;
         if(mounted)setSheet(()=>_transcript=r.recognizedWords);
-        if(r.finalResult){setSheet(()=>_listening=false);_runVoiceCommand(r.recognizedWords);}
+        if(r.finalResult){setSheet(()=>_listening=false);_runVoiceCommand(r.recognizedWords);_executeVoiceCommand(r.recognizedWords);}
       },
     );
+  }
+
+  Future<void> _executeVoiceCommand(String command) async {
+    final q=command.toLowerCase();
+    if(q.contains('consume')||q.contains('consommer')){
+      final rice=pantry.indexWhere((x)=>x['name'].toString().toLowerCase()=='rice');
+      if(rice>=0){setState(()=>pantry[rice]['qty']=max(0,(pantry[rice]['qty'] as num).toDouble()-1));_refreshShopping();await _speak(t('One unit of rice consumed.','Une unité de riz consommée.'));return;}
+    }
+    if(q.contains('gas')||q.contains('gaz')){
+      await _speak((gasLevel*100).toStringAsFixed(0)+'% '+t('gas remaining.','de gaz restant.'));return;
+    }
+    if(q.contains('shopping')||q.contains('achat')){
+      await _speak(shopping.isEmpty?t('Shopping list is clear.','La liste d’achats est vide.'):t('Your shopping list has items to buy.','Votre liste d’achats contient des articles.'));return;
+    }
+    if(q.contains('budget')||q.contains('argent')){
+      await _speak(t('You have ','Il vous reste ')+remaining.toStringAsFixed(0)+' FCFA.');return;
+    }
+    await _speak(t('I can check gas, budget, shopping, or consume one unit of rice.','Je peux vérifier le gaz, le budget, les achats ou consommer une unité de riz.'));
   }
 
   Future<void> _speak(String text) async {
