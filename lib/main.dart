@@ -566,10 +566,23 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     final qty=parsedQty()??1.0;
     final unit=parsedUnit();
 
+    double storageQuantity(double amount,String spokenUnit,String storageUnit){
+      final a=spokenUnit.toLowerCase();
+      final b=storageUnit.toLowerCase();
+      if(a.isEmpty||b.isEmpty||a==b)return amount;
+      if(a=='g'&&b=='kg')return amount/1000;
+      if(a=='kg'&&b=='g')return amount*1000;
+      if(a=='ml'&&b=='l')return amount/1000;
+      if(a=='l'&&b=='ml')return amount*1000;
+      return amount;
+    }
+
     if(item>=0&&(q.contains('buy')||q.contains('bought')||q.contains('purchase')||q.contains('acheter')||q.contains('acheté')||q.contains('achète'))){
       final name=pantry[item]['name'].toString();
-      final effectiveUnit=unit.isEmpty?pantry[item]['unit'].toString():unit;
-      setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+qty);
+      final storageUnit=pantry[item]['unit'].toString();
+      final effectiveUnit=unit.isEmpty?storageUnit:unit;
+      final storageQty=storageQuantity(qty,effectiveUnit,storageUnit);
+      setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+storageQty);
       _refreshShopping(save:false);
       final priceMatch=RegExp(r'(?:for|cost|prix|coût)\s+(\d[\d .]*)\s*(?:fcfa|f|francs?)?').firstMatch(q);
       final price=priceMatch==null?null:double.tryParse(priceMatch.group(1)!.replaceAll(RegExp(r'[^0-9]'), ''));
