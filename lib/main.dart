@@ -496,22 +496,31 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   }
 
   Future<void> _executeVoiceCommand(String command) async {
-    final q=command.toLowerCase();
-    if(q.contains('consume')||q.contains('consommer')){
-      final rice=pantry.indexWhere((x)=>x['name'].toString().toLowerCase()=='rice');
-      if(rice>=0){setState(()=>pantry[rice]['qty']=max(0,(pantry[rice]['qty'] as num).toDouble()-1));_refreshShopping();await _speak(t('One unit of rice consumed.','Une unité de riz consommée.'));return;}
+    final q=command.toLowerCase().trim();
+    double? parsedQty(){
+      final m=RegExp(r'(\\d+(?:[.,]\\d+)?)').firstMatch(q);
+      return m==null?null:double.tryParse(m.group(1)!.replaceAll(',','.'));
     }
-    if(q.contains('gas')||q.contains('gaz')){
-      await _speak((gasLevel*100).toStringAsFixed(0)+'% '+t('gas remaining.','de gaz restant.'));return;
+    int findItem(){for(var i=0;i<pantry.length;i++){if(q.contains(pantry[i]['name'].toString().toLowerCase()))return i;}return -1;}
+    if(q.contains('gas')||q.contains('gaz')){await _speak((gasLevel*100).toStringAsFixed(0)+'% '+t('gas remaining.','de gaz restant.'));return;}
+    if(q.contains('budget')||q.contains('argent')){await _speak(t('You have ','Il vous reste ')+remaining.toStringAsFixed(0)+' FCFA.');return;}
+    if(q.contains('shopping')||q.contains('achat')){await _speak(shopping.isEmpty?t('Shopping list is clear.','La liste d’achats est vide.'):t('Your shopping list has items to buy.','Votre liste d’achats contient des articles.'));return;}
+    final item=findItem(); final qty=parsedQty()??1.0;
+    if(item>=0&&(q.contains('consume')||q.contains('consommer')||q.contains('use')||q.contains('utilise')||q.contains('utiliser'))){
+      final current=(pantry[item]['qty'] as num? ?? 0).toDouble(); setState(()=>pantry[item]['qty']=max(0,current-qty)); _refreshShopping();
+      await _speak(t('${qty.toString()} consumed from ${pantry[item]['name']}.','${qty.toString()} consommé(s) de ${pantry[item]['name']}.'));return;
     }
-    if(q.contains('shopping')||q.contains('achat')){
-      await _speak(shopping.isEmpty?t('Shopping list is clear.','La liste d’achats est vide.'):t('Your shopping list has items to buy.','Votre liste d’achats contient des articles.'));return;
+    if(item>=0&&(q.contains('add')||q.contains('ajoute')||q.contains('ajouter'))){
+      setState(()=>pantry[item]['qty']=(pantry[item]['qty'] as num? ?? 0).toDouble()+qty); _refreshShopping(); await _save();
+      await _speak(t('${qty.toString()} added to ${pantry[item]['name']}.','${qty.toString()} ajouté(s) à ${pantry[item]['name']}.'));return;
     }
-    if(q.contains('budget')||q.contains('argent')){
-      await _speak(t('You have ','Il vous reste ')+remaining.toStringAsFixed(0)+' FCFA.');return;
+    if(q.contains('expire')||q.contains('expir')||q.contains('use soon')||q.contains('bientôt')){
+      final soon=pantry.where((x){final d=DateTime.tryParse(x['useBy']?.toString()??'');return d!=null&&d.difference(DateTime.now()).inDays<=2;}).map((x)=>x['name'].toString()).toList();
+      await _speak(soon.isEmpty?t('Nothing is expiring soon.','Rien n’expire bientôt.'):t('Use soon: ','À utiliser bientôt : ')+soon.join(', '));return;
     }
-    await _speak(t('I can check gas, budget, shopping, or consume one unit of rice.','Je peux vérifier le gaz, le budget, les achats ou consommer une unité de riz.'));
+    await _speak(t('Try: add 2 rice, consume 1 beans, check gas, budget, shopping, or expiry.','Essayez : ajouter 2 riz, consommer 1 haricot, vérifier le gaz, le budget, les achats ou les dates limites.'));
   }
+
 
   Future<void> _speak(String text) async {
     if(!mounted)return;
