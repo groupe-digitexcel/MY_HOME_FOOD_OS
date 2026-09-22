@@ -560,6 +560,14 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       return;
     }
 
+    if((q.contains('plan')||q.contains('menu'))&&(q.contains('tomorrow')||q.contains('demain'))){
+      _autoPlan();
+      final tomorrowIndex=DateTime.now().weekday%7;
+      final tomorrow=plan[tomorrowIndex]['meal'].toString();
+      await _speak(t('Tomorrow is planned: '+tomorrow+'.','Demain est planifié : '+tomorrow+'.'));
+      return;
+    }
+
     if(q.contains('tomorrow')||q.contains('demain')){
       if(plan.isEmpty)_autoPlan(save:false);
       final tomorrowIndex=DateTime.now().weekday%7;
@@ -581,14 +589,6 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         return;
       }
       await _speak(snackIndex<0?t('All scheduled snacks are prepared.','Tous les goûters planifiés sont préparés.'):t('Next snack: '+snacks[snackIndex]['item'].toString()+' for '+snacks[snackIndex]['child'].toString()+'.','Prochain goûter : '+snacks[snackIndex]['item'].toString()+' pour '+snacks[snackIndex]['child'].toString()+'.'));
-      return;
-    }
-
-    if((q.contains('plan')||q.contains('menu'))&&(q.contains('tomorrow')||q.contains('demain'))){
-      _autoPlan();
-      final tomorrowIndex=DateTime.now().weekday%7;
-      final tomorrow=plan[tomorrowIndex]['meal'].toString();
-      await _speak(t('Tomorrow is planned: '+tomorrow+'.','Demain est planifié : '+tomorrow+'.'));
       return;
     }
 
