@@ -39,5 +39,30 @@ void main() {
       expect(result['dailyLimit'], 15000);
       expect(result['status'], 'healthy');
     });
+
+    test('ingredient consumption reduces matching stock without going negative', () {
+      final result = HouseholdEngine.consumeIngredients([
+        {'name': 'Rice', 'qty': 1.5, 'unit': 'kg', 'min': 1.0},
+        {'name': 'Beans', 'qty': 0.5, 'unit': 'kg', 'min': 1.0},
+      ], ['Rice', 'Beans']);
+      expect(result[0]['qty'], 0.5);
+      expect(result[1]['qty'], 0);
+    });
+
+    test('freezer percentage is clamped to capacity', () {
+      expect(HouseholdEngine.freezerPercent(120, 100), 100);
+      expect(HouseholdEngine.freezerPercent(-5, 100), 0);
+    });
+
+    test('household advice combines actionable conditions', () {
+      expect(
+        HouseholdEngine.householdAdvice(
+          lowStock: 2,
+          leftovers: 1,
+          budgetRemaining: 50000,
+        ),
+        contains('leftovers'),
+      );
+    });
   });
 }
