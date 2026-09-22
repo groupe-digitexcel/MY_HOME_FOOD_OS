@@ -548,6 +548,67 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     }
     bool hasAny(List<String> words)=>words.any(q.contains);
 
+    if(hasAny(['which meal','what meal','meal save gas','save gas','économiser le gaz','economise le gaz'])) {
+      final candidates=HouseholdEngine.gasEfficiencyCandidates(meals);
+      final names=candidates.take(3).map((x)=>x['name'].toString()).join(', ');
+      await _speak(t('Gas-efficiency heuristic: '+names+'. This is a planning estimate, not measured fuel consumption.',
+        'Heuristique d’économie de gaz : '+names+'. C’est une estimation de planification, pas une mesure réelle de consommation.'));
+      return;
+    }
+
+    if(hasAny(['next 3 days','three days','3 days','trois jours','3 jours','prochains jours'])) {
+      final ceiling=remaining>0?remaining:0.0;
+      final rows=HouseholdEngine.planNextDays(
+        meals:meals, pantry:pantry, leftovers:leftovers,
+        budgetLimit:ceiling, days:3,
+      );
+      if(rows.isEmpty){
+        await _speak(t('I could not build a three-day plan within the current budget and meal library.',
+          'Je ne peux pas construire un plan de trois jours avec le budget et la bibliothèque actuels.'));
+        return;
+      }
+      if(plan.length<7)_autoPlan(save:false);
+      for(var i=0;i<rows.length;i++){
+        final idx=(DateTime.now().weekday-1+i)%7;
+        if(idx<plan.length){
+          final row=rows[i];
+          plan[idx]={
+            'day':['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][idx],
+            'meal':row['meal'],'region':row['region'],
+            'estimatedCost':row['estimatedCost'],
+            'leftoverPlan':'Use leftovers first when available.',
+            'reason':row['reason'],
+          };
+        }
+      }
+      _refreshShopping(save:false);
+      await _save();
+      await _speak(t(
+        'Next three days: '+rows.map((x)=>x['meal'].toString()).join(', ')+'.',
+        'Les trois prochains jours : '+rows.map((x)=>x['meal'].toString()).join(', ')+'.'));
+      return;
+    }
+
+    if(hasAny(['replace','replacement','substitute','remplacer','remplacement'])) {
+      final targets=['tomatoes','tomate','tomates','onions','oignons','plantain','banane plantain','palm oil','huile de palme','beans','haricots'];
+      final target=targets.firstWhere((x)=>q.contains(x),orElse:()=> '');
+      if(target.isEmpty){
+        await _speak(t('Tell me which ingredient is missing and I will suggest available planning substitutes.',
+          'Dites-moi quel ingrédient manque et je proposerai des substituts de planification.'));
+        return;
+      }
+      final canonical=target.contains('tomat')?'tomatoes':
+          target.contains('oignon')?'onions':
+          target.contains('plantain')||target.contains('banane')?'plantain':
+          target.contains('palme')||target.contains('oil')?'palm oil':'beans';
+      final options=HouseholdEngine.substitutionSuggestions(canonical);
+      await _speak(options.isEmpty
+        ? t('No configured substitute is available for '+canonical+'.','Aucun substitut configuré pour '+canonical+'.')
+        : t('Configured planning substitutes for '+canonical+': '+options.join(', ')+'.',
+            'Substituts de planification configurés pour '+canonical+' : '+options.join(', ')+'.'));
+      return;
+    }
+
     if(hasAny(['gas','gaz'])){
       await _speak((gasLevel*100).toStringAsFixed(0)+'% '+t('gas remaining.','de gaz restant.')+' '+t('Use batch cooking when the cylinder is low.','Privilégiez la cuisson en lot lorsque le gaz est bas.'));
       return;
