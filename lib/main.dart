@@ -44,7 +44,11 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     {'child':'Child 1','day':'Mon','item':'banana + bread + water','qty':1,'cost':500.0,'prepared':false},
   ];
   final tasks = <Map<String,dynamic>>[
-    {'task':'Sweep & mop','done':false},{'task':'Clean kitchen','done':false},{'task':'Clean fridge','done':false},{'task':'Check gas cylinder','done':false},{'task':'Laundry','done':false},
+    {'task':'Sweep & mop','done':false,'frequency':'Daily','next':'Today'},
+    {'task':'Clean kitchen','done':false,'frequency':'Daily','next':'Today'},
+    {'task':'Clean fridge','done':false,'frequency':'Weekly','next':'Saturday'},
+    {'task':'Check gas cylinder','done':false,'frequency':'Weekly','next':'Monday'},
+    {'task':'Laundry','done':false,'frequency':'Weekly','next':'Saturday'},
   ];
 
   @override void initState(){super.initState();_load();}
@@ -303,7 +307,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   Widget _carePage()=>ListView(padding:const EdgeInsets.all(16),children:[
     Text(t('House care','Entretien de la maison'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),const SizedBox(height:10),
-    _card(t('Today’s checklist','Checklist du jour'),tasks.map((e)=>CheckboxListTile(value:e['done'],onChanged:(v){setState(()=>e['done']=v??false);_save();},title:Text(e['task'].toString()),controlAffinity:ListTileControlAffinity.leading)).toList()),
+    _card(t('House-care schedule','Planning entretien'),tasks.map((e)=>CheckboxListTile(value:e['done']==true,onChanged:(v){setState(()=>e['done']=v??false);_save();},title:Text(e['task'].toString()),subtitle:Text(e['frequency'].toString()+' • '+e['next'].toString()),controlAffinity:ListTileControlAffinity.leading)).toList()),
     _card(t('Gas management','Gestion du gaz'),[
       LinearProgressIndicator(value:gasCapacity<=0?0:(gasLevel/gasCapacity).clamp(0,1)),
       const SizedBox(height:8),
