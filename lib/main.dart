@@ -280,9 +280,9 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       Expanded(child:FilledButton.icon(onPressed:()=>_showMealEditor(),icon:const Icon(Icons.add),label:Text(t('Teach a meal','Ajouter un repas')))),
       const SizedBox(width:8),Expanded(child:OutlinedButton.icon(onPressed:_autoPlan,icon:const Icon(Icons.auto_awesome),label:Text(t('Replan','Replanifier')))),
     ]),
-    const SizedBox(height:12),_card(t('Live weekly plan','Plan hebdomadaire dynamique'),plan.map((x)=>_line(Icons.restaurant,'\${x['day']} — \${x['meal']} • \${x['estimatedCost']} FCFA')).toList()),
+    const SizedBox(height:12),_card(t('Live weekly plan','Plan hebdomadaire dynamique'),plan.map((x)=>_line(Icons.restaurant,'${x['day']} — ${x['meal']} • ${x['estimatedCost']} FCFA')).toList()),
     const SizedBox(height:12),_card(t('Meal library','Bibliothèque des repas'),[
-      ...List.generate(meals.length,(i){final m=meals[i];final hasRecipe=m.length>3&&m[3] is List;return Card(margin:const EdgeInsets.only(bottom:8),child:ListTile(onTap:()=>_showMealEditor(i),leading:CircleAvatar(child:Icon(hasRecipe?Icons.psychology:Icons.restaurant)),title:Text(m[0].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('\${m[1]} • \${m[2]} FCFA\${hasRecipe?' • '+t('learned recipe','recette apprise'):''}'),trailing:PopupMenuButton<String>(onSelected:(v){if(v=='edit')_showMealEditor(i);if(v=='delete')_deleteMeal(i);},itemBuilder:(_)=>[PopupMenuItem(value:'edit',child:Text(t('Edit','Modifier'))),PopupMenuItem(value:'delete',child:Text(t('Remove','Retirer')))]));}),
+      ...List.generate(meals.length,(i){final m=meals[i];final hasRecipe=m.length>3&&m[3] is List;return Card(margin:const EdgeInsets.only(bottom:8),child:ListTile(onTap:()=>_showMealEditor(i),leading:CircleAvatar(child:Icon(hasRecipe?Icons.psychology:Icons.restaurant)),title:Text(m[0].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('${m[1]} • ${m[2]} FCFA${hasRecipe?' • '+t('learned recipe','recette apprise'):''}'),trailing:PopupMenuButton<String>(onSelected:(v){if(v=='edit')_showMealEditor(i);if(v=='delete')_deleteMeal(i);},itemBuilder:(_)=>[PopupMenuItem(value:'edit',child:Text(t('Edit','Modifier'))),PopupMenuItem(value:'delete',child:Text(t('Remove','Retirer')))]));}),
     ]),
   ]);
 
