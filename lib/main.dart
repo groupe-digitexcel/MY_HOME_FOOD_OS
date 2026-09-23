@@ -915,16 +915,6 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     }
     return out;
   }
-      if(m==null)continue;
-      final name=m.group(1)!.trim();
-      final qty=double.tryParse(m.group(2)!.replaceAll(',','.'))??0;
-      var unit=(m.group(3)??'item').toLowerCase();
-      if(unit=='pieces')unit='piece';
-      if(unit=='bunch'||unit=='régime'||unit=='régimes')unit='bunches';
-      out.add({'name':name,'qty':qty,'unit':unit});
-    }
-    return out;
-  }
   Future<void> _showBudgetEditor() async {
     final controller=TextEditingController(text:budget.toStringAsFixed(0));
     await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>Padding(
