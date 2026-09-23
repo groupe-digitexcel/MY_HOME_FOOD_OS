@@ -282,7 +282,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ]),
     const SizedBox(height:12),_card(t('Live weekly plan','Plan hebdomadaire dynamique'),plan.map((x)=>_line(Icons.restaurant,'${x['day']} — ${x['meal']} • ${x['estimatedCost']} FCFA')).toList()),
     const SizedBox(height:12),_card(t('Meal library','Bibliothèque des repas'),[
-      ...List.generate(meals.length,(i){final m=meals[i];final hasRecipe=m.length>3&&m[3] is List;return Card(margin:const EdgeInsets.only(bottom:8),child:ListTile(onTap:()=>_showMealEditor(i),leading:CircleAvatar(child:Icon(hasRecipe?Icons.psychology:Icons.restaurant)),title:Text(m[0].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('${m[1]} • ${m[2]} FCFA${hasRecipe?' • '+t('learned recipe','recette apprise'):''}'),trailing:PopupMenuButton<String>(onSelected:(v){if(v=='edit')_showMealEditor(i);if(v=='delete')_deleteMeal(i);},itemBuilder:(_)=>[PopupMenuItem(value:'edit',child:Text(t('Edit','Modifier'))),PopupMenuItem(value:'delete',child:Text(t('Remove','Retirer')))]));}),
+      ...List.generate(meals.length,(i){final m=meals[i];final hasRecipe=m.length>3&&m[3] is List;return Card(margin:const EdgeInsets.only(bottom:8),child:ListTile(onTap:()=>_showMealEditor(i),leading:CircleAvatar(child:Icon(hasRecipe?Icons.psychology:Icons.restaurant)),title:Text(m[0].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('${m[1]} • ${m[2]} FCFA${hasRecipe?' • '+t('learned recipe','recette apprise'):''}'),trailing:PopupMenuButton<String>(onSelected:(v){if(v=='edit')_showMealEditor(i);if(v=='delete')_deleteMeal(i);},itemBuilder:(_)=>[PopupMenuItem(value:'edit',child:Text(t('Edit','Modifier'))),PopupMenuItem(value:'delete',child:Text(t('Remove','Retirer')))])));}),
     ]),
   ]);
 
@@ -588,12 +588,12 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       child:SingleChildScrollView(child:Column(children:[
         Text(t('Add something to the home','Ajouter quelque chose à la maison'),style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800)),
         TextField(controller:name,decoration:InputDecoration(labelText:t('Item name','Nom de l’article'))),
-        Row(children:[Expanded(child:TextField(controller:qty,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Quantity','Quantité')))),const SizedBox(width:8),Expanded(child:DropdownButtonFormField<String>(value:unit,items:['item','kg','g','L','ml','piece','bunches'].map((u)=>DropdownMenuItem(value:u,child:Text(u))).toList(),onChanged:(v){if(v!=null)setSheet(()=>unit=v);},decoration:InputDecoration(labelText:t('Unit','Unité'))))]),
+        Row(children:[Expanded(child:TextField(controller:qty,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Quantity','Quantité')))),const SizedBox(width:8),Expanded(child:DropdownButtonFormField<String>(initialValue:unit,items:['item','kg','g','L','ml','piece','bunches'].map((u)=>DropdownMenuItem(value:u,child:Text(u))).toList(),onChanged:(v){if(v!=null)setSheet(()=>unit=v);},decoration:InputDecoration(labelText:t('Unit','Unité'))))]),
         TextField(controller:min,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Alert below','Alerte en dessous de'))),
-        DropdownButtonFormField<String>(value:location,items:['Dry store','Fridge','Freezer'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v){if(v!=null)setSheet(()=>location=v);},decoration:InputDecoration(labelText:t('Where','Où'))),
+        DropdownButtonFormField<String>(initialValue:location,items:['Dry store','Fridge','Freezer'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v){if(v!=null)setSheet(()=>location=v);},decoration:InputDecoration(labelText:t('Where','Où'))),
         TextField(controller:useBy,decoration:InputDecoration(labelText:t('Use-by date (optional)','Date limite (facultatif)'))),
         const SizedBox(height:14),SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:(){final n=name.text.trim();if(n.isEmpty)return;setState(()=>pantry.add({'name':n,'qty':double.tryParse(qty.text.replaceAll(',','.'))??1,'unit':unit,'min':double.tryParse(min.text.replaceAll(',','.'))??0,'location':location,'useBy':useBy.text.trim()}));_refreshShopping(save:false);_save();Navigator.pop(sheet);ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Added to live storage.','Ajouté au stock vivant.'))));},icon:const Icon(Icons.add),label:Text(t('Add to live storage','Ajouter au stock vivant')))),
-      ]))));
+      ])))));
   }
 
 
