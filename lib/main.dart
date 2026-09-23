@@ -901,17 +901,20 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     for(final part in raw.split(',')){
       final p=part.trim();
       if(p.isEmpty)continue;
-      final m=RegExp(r'^(.+?)\s*:\s*(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|piece|pieces|bunch|bunches|régime|régimes)?
-    final name=TextEditingController(),region=TextEditingController(text:'All'),cost=TextEditingController(text:'3500');
-    await showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('Add meal','Ajouter un repas')),content:Column(mainAxisSize:MainAxisSize.min,children:[
-      TextField(controller:name,decoration:InputDecoration(labelText:t('Meal name','Nom du repas'))),
-      TextField(controller:region,decoration:InputDecoration(labelText:t('Region','Région'))),
-      TextField(controller:cost,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Estimated cost FCFA','Coût estimé FCFA'))),
-    ]),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text(t('Cancel','Annuler'))),FilledButton(onPressed:(){if(name.text.trim().isNotEmpty){setState(()=>meals.add([name.text.trim(),region.text.trim(),double.tryParse(cost.text)??0]));_save();}Navigator.pop(context);},child:Text(t('Add','Ajouter')))]));
+      final m=RegExp(
+        r'^(.+?)\s*:\s*(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|piece|pieces|bunch|bunches|régime|régimes)?',
+        caseSensitive:false,
+      ).firstMatch(p);
+      if(m==null)continue;
+      final name=m.group(1)!.trim();
+      final qty=double.tryParse(m.group(2)!.replaceAll(',','.'))??0;
+      var unit=(m.group(3)??'item').toLowerCase();
+      if(unit=='pieces')unit='piece';
+      if(unit=='bunch'||unit=='régime'||unit=='régimes')unit='bunches';
+      out.add({'name':name,'qty':qty,'unit':unit});
+    }
+    return out;
   }
-
-  @override void dispose(){_speech.stop();_tts.stop();super.dispose();}
-},caseSensitive:false).firstMatch(p);
       if(m==null)continue;
       final name=m.group(1)!.trim();
       final qty=double.tryParse(m.group(2)!.replaceAll(',','.'))??0;
