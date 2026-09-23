@@ -109,25 +109,138 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   Widget _page()=>[_homePage(),_mealsPage(),_storagePage(),_carePage(),_reportsPage()][tab];
 
   Widget _homePage()=>ListView(padding:const EdgeInsets.all(16),children:[
-    _hero(),const SizedBox(height:12),
-    Row(children:[Expanded(child:_metric(t('Budget left','Budget restant'),remaining.toStringAsFixed(0)+' FCFA',Icons.account_balance_wallet)),const SizedBox(width:10),Expanded(child:_metric(t('Low stock','Stock bas'),lowStock.toString(),Icons.warning_amber))]),
+    _hero(),
     const SizedBox(height:12),
-    _card(t('Today','Aujourd’hui'),[
+
+    Text(t('HOME INTELLIGENCE','INTELLIGENCE MAISON'),style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),
+    const SizedBox(height:8),
+    _card(t('Today at a glance','Vue d’ensemble du jour'),[
       _line(Icons.restaurant,t('Lunch: ','Déjeuner : ')+_todayMeal()),
-      _line(Icons.school,t('School snack: ','Goûter école : ')+(snacks.isEmpty?'—':snacks.first['item'].toString())),
       _line(Icons.nightlight,t('Dinner: ','Dîner : ')+_dinnerMeal()),
-      const SizedBox(height:6),
-      FilledButton.icon(onPressed:_cookTodayLunch,icon:const Icon(Icons.soup_kitchen),label:Text(t('Cook & consume lunch','Cuisiner & consommer le déjeuner'))),
+      _line(Icons.school,t('School snack: ','Goûter école : ')+(snacks.isEmpty?'—':snacks.first['item'].toString())),
+      _line(Icons.inventory_2,t('Low stock: ','Stock bas : ')+lowStock.toString()),
+      _line(Icons.shopping_cart,t('Shopping items: ','Articles à acheter : ')+shopping.where((x)=>x['purchased']!=true).length.toString()),
     ]),
     const SizedBox(height:12),
-    _card(t('School snack plan','Plan des goûters'),[
-      for(final s in snacks.take(5)) _line(Icons.school,s['child'].toString()+' • '+s['day'].toString()+' • '+s['item'].toString()),
-      TextButton.icon(onPressed:()=>showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('School snacks','Goûters scolaires')),content:_snackPage())),icon:const Icon(Icons.edit),label:Text(t('Manage snacks','Gérer les goûters')))
+
+    Row(children:[
+      Expanded(child:_metric(t('Budget left','Budget restant'),remaining.toStringAsFixed(0)+' FCFA',Icons.account_balance_wallet)),
+      const SizedBox(width:10),
+      Expanded(child:_metric(t('Gas level','Niveau de gaz'),(gasLevel*100).toStringAsFixed(0)+'%',Icons.local_fire_department)),
     ]),
     const SizedBox(height:12),
-    _card(t('Smart household insight','Conseil intelligent'),[_line(Icons.auto_awesome,lowStock>0?t('Some food is running low. Add it to shopping.','Certains aliments diminuent. Ajoutez-les aux achats.'):t('Stock is healthy. Reuse planned leftovers before cooking new food.','Le stock est bon. Utilisez les restes avant de cuisiner autre chose.'))]),
+
+    _card(t('DO IT NOW','À FAIRE MAINTENANT'),[
+      Row(children:[
+        Expanded(child:FilledButton.icon(onPressed:_cookTodayLunch,icon:const Icon(Icons.soup_kitchen),label:Text(t('Cook now','Cuisiner')))),
+        const SizedBox(width:8),
+        Expanded(child:OutlinedButton.icon(
+          onPressed:(){
+            if(leftovers.isEmpty){
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('No saved leftover to use first.','Aucun reste enregistré à utiliser.'))));
+              return;
+            }
+            final used=leftovers.removeAt(0);
+            _save();
+            setState((){});
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Used leftover: ','Reste utilisé : ')+used['name'].toString())));
+          },
+          icon:const Icon(Icons.replay),
+          label:Text(t('Use first','Utiliser d’abord')),
+        )),
+      ]),
+      const SizedBox(height:8),
+      Row(children:[
+        Expanded(child:OutlinedButton.icon(onPressed:()=>setState(()=>tab=2),icon:const Icon(Icons.shopping_cart),label:Text(t('Buy today','Acheter')))),
+        const SizedBox(width:8),
+        Expanded(child:OutlinedButton.icon(onPressed:()=>setState(()=>tab=4),icon:const Icon(Icons.shield),label:Text(t('Budget guard','Garde budget')))),
+      ]),
+    ]),
     const SizedBox(height:12),
-    FilledButton.icon(onPressed:_showCopilot,icon:const Icon(Icons.mic),label:Text(t('Talk to Home Copilot','Parler au Copilote Maison')))
+
+    Builder(builder:(context){
+      final decisions=HouseholdEngine.mealDecisions(
+        meals:meals,
+        pantry:pantry,
+        leftovers:leftovers,
+        budgetLimit:remaining>0?remaining:0,
+      );
+      final ready=decisions.where((x)=>x['pantryReady']==true && x['withinBudget']==true).take(3).toList();
+      return _card(t('COOK NOW INTELLIGENCE','INTELLIGENCE CUISINE'),[
+        if(ready.isEmpty)
+          _line(Icons.info_outline,t('No fully ready meal fits the current budget. Check shopping.','Aucun repas prêt ne respecte le budget actuel. Vérifiez les achats.'))
+        else
+          ...ready.map((x)=>_line(
+            x['usesLeftover']==true?Icons.replay:Icons.check_circle,
+            x['name'].toString()+' • '+(x['estimatedCost'] as double).toStringAsFixed(0)+' FCFA'
+          )),
+        const SizedBox(height:4),
+        OutlinedButton.icon(
+          onPressed:()=>_executeVoiceCommand('what can I cook'),
+          icon:const Icon(Icons.restaurant),
+          label:Text(t('Ask what can be cooked','Demander quoi cuisiner')),
+        ),
+      ]);
+    }),
+    const SizedBox(height:12),
+
+    Builder(builder:(context){
+      final rows=HouseholdEngine.planNextDays(
+        meals:meals,
+        pantry:pantry,
+        leftovers:leftovers,
+        budgetLimit:remaining>0?remaining:0,
+        days:3,
+      );
+      return _card(t('NEXT 3 DAYS','LES 3 PROCHAINS JOURS'),[
+        if(rows.isEmpty)
+          _line(Icons.event_busy,t('No three-day plan fits the current constraints.','Aucun plan de trois jours ne respecte les contraintes actuelles.'))
+        else
+          ...rows.map((x)=>_line(
+            x['source']=='leftover'?Icons.replay:Icons.calendar_today,
+            x['meal'].toString()+' • '+x['source'].toString()
+          )),
+        const SizedBox(height:4),
+        FilledButton.icon(
+          onPressed:()=>_executeVoiceCommand('next 3 days'),
+          icon:const Icon(Icons.auto_awesome),
+          label:Text(t('Plan next 3 days','Planifier les 3 prochains jours')),
+        ),
+      ]);
+    }),
+    const SizedBox(height:12),
+
+    _card(t('HOUSEHOLD GUARDRAILS','GARDE-FOUS DU FOYER'),[
+      _line(Icons.inventory,t('Use-first items: ','À utiliser en priorité : ')+lowStock.toString()),
+      _line(Icons.local_fire_department,t('Gas: ','Gaz : ')+(gasLevel*100).toStringAsFixed(0)+'% '+t('remaining','restant')),
+      _line(Icons.account_balance_wallet,t('Budget: ','Budget : ')+remaining.toStringAsFixed(0)+' FCFA '+t('remaining','restant')),
+      _line(Icons.kitchen,t('Storage: ','Stock : ')+pantry.length.toString()+' '+t('tracked items','articles suivis')),
+      Row(children:[
+        Expanded(child:OutlinedButton.icon(
+          onPressed:()=>_executeVoiceCommand('save gas'),
+          icon:const Icon(Icons.local_fire_department),
+          label:Text(t('Gas intelligence','Intelligence gaz')),
+        )),
+        const SizedBox(width:8),
+        Expanded(child:OutlinedButton.icon(
+          onPressed:_showCopilot,
+          icon:const Icon(Icons.swap_horiz),
+          label:Text(t('Substitution','Substitution')),
+        )),
+      ]),
+    ]),
+    const SizedBox(height:12),
+
+    _card(t('SCHOOL + HOUSE','ÉCOLE + MAISON'),[
+      _line(Icons.school,t('Next snack: ','Prochain goûter : ')+(snacks.where((x)=>x['prepared']!=true).isEmpty?'—':snacks.firstWhere((x)=>x['prepared']!=true)['item'].toString())),
+      _line(Icons.cleaning_services,t('Open care tasks: ','Tâches maison ouvertes : ')+tasks.where((x)=>x['done']!=true).length.toString()),
+      const SizedBox(height:4),
+      Row(children:[
+        Expanded(child:OutlinedButton.icon(onPressed:()=>setState(()=>tab=3),icon:const Icon(Icons.cleaning_services),label:Text(t('House care','Maison')))),
+        const SizedBox(width:8),
+        Expanded(child:OutlinedButton.icon(onPressed:_showCopilot,icon:const Icon(Icons.mic),label:Text(t('Talk to Copilot','Parler au Copilote')))),
+      ]),
+    ]),
   ]);
 
   Widget _hero()=>Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(borderRadius:BorderRadius.circular(24),gradient:const LinearGradient(colors:[Color(0xff1b5e20),Color(0xff43a047)])),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
