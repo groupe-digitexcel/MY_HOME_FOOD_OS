@@ -99,6 +99,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       appBar:AppBar(title:const Text('MY HOME FOOD OS',style:TextStyle(fontWeight:FontWeight.w800)),
         actions:[TextButton(onPressed:(){setState(()=>lang=lang=='EN'?'FR':'EN');_save();},child:Text(lang)),IconButton(onPressed:_showCopilot,icon:const Icon(Icons.auto_awesome))]),
       body:_page(),
+      floatingActionButton:FloatingActionButton.extended(onPressed:_showCopilot,icon:Icon(_listening?Icons.mic:Icons.auto_awesome),label:Text(_listening?t('Listening…','J’écoute…'):t('Talk to me','Parler'))),
       bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),destinations:[
         NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:t('Home','Accueil')),
         NavigationDestination(icon:Icon(Icons.restaurant_menu),label:t('Meals','Repas')),
@@ -111,6 +112,21 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   Widget _homePage()=>ListView(padding:const EdgeInsets.all(16),children:[
     _hero(),
     const SizedBox(height:12),
+    _card(t('HOME COPILOT','COPILOTE MAISON'),[
+      Text(_humanGreeting(),style:const TextStyle(fontSize:16,fontWeight:FontWeight.w600)),
+      const SizedBox(height:10),
+      Wrap(spacing:8,runSpacing:8,children:[
+        ActionChip(avatar:const Icon(Icons.restaurant,size:18),label:Text(t('What can I cook?','Que puis-je cuisiner ?')),onPressed:()=>_executeVoiceCommand(t('what can I cook','que puis-je cuisiner'))),
+        ActionChip(avatar:const Icon(Icons.shopping_cart,size:18),label:Text(t('What should I buy?','Que dois-je acheter ?')),onPressed:()=>_executeVoiceCommand(t('shopping list','liste d’achats'))),
+        ActionChip(avatar:const Icon(Icons.account_balance_wallet,size:18),label:Text(t('Budget','Budget')),onPressed:_showBudgetEditor),
+      ]),
+    ]),
+    const SizedBox(height:12),
+    _card(t('MONTHLY BUDGET','BUDGET MENSUEL'),[
+      Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(budget.toStringAsFixed(0)+' FCFA',style:const TextStyle(fontSize:25,fontWeight:FontWeight.w900)),const SizedBox(height:4),Text(t('Spent: ','Dépensé : ')+spent.toStringAsFixed(0)+' FCFA • '+t('Left: ','Reste : ')+remaining.toStringAsFixed(0)+' FCFA')])),IconButton(onPressed:_showBudgetEditor,icon:const Icon(Icons.edit_note),tooltip:t('Edit budget','Modifier le budget'))]),
+      const SizedBox(height:8),LinearProgressIndicator(value:budget<=0?0:(spent/budget).clamp(0,1),minHeight:8,borderRadius:BorderRadius.circular(8)),
+    ]),
+
 
     Text(t('HOME INTELLIGENCE','INTELLIGENCE MAISON'),style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),
     const SizedBox(height:8),
@@ -243,6 +259,11 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ]),
   ]);
 
+  Widget _sectionHeader(String title,String subtitle,IconData icon)=>Padding(
+    padding:const EdgeInsets.only(bottom:12),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Container(width:48,height:48,decoration:BoxDecoration(color:Theme.of(context).colorScheme.primaryContainer,borderRadius:BorderRadius.circular(16)),child:Icon(icon,color:Theme.of(context).colorScheme.onPrimaryContainer)),
+      const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(title,style:const TextStyle(fontSize:25,fontWeight:FontWeight.w800)),const SizedBox(height:4),Text(subtitle,style:TextStyle(color:Theme.of(context).colorScheme.onSurfaceVariant))]))
+    ]));
   Widget _hero()=>Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(borderRadius:BorderRadius.circular(24),gradient:const LinearGradient(colors:[Color(0xff1b5e20),Color(0xff43a047)])),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     const Icon(Icons.home_work,color:Colors.white,size:36),const SizedBox(height:10),
     Text(t('Your family food command center','Le centre de contrôle alimentaire de la famille'),style:const TextStyle(color:Colors.white,fontSize:23,fontWeight:FontWeight.w800)),
@@ -254,10 +275,15 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   Widget _line(IconData i,String s)=>Padding(padding:const EdgeInsets.symmetric(vertical:7),child:Row(children:[Icon(i,size:20),const SizedBox(width:10),Expanded(child:Text(s))]));
 
   Widget _mealsPage()=>ListView(padding:const EdgeInsets.all(16),children:[
-    Row(children:[Expanded(child:Text(t('Weekly menu','Menu de la semaine'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800))),IconButton(onPressed:_showAddMeal,icon:const Icon(Icons.add_circle))]),const SizedBox(height:10),
-    _card(t('Live weekly plan','Plan hebdomadaire dynamique'),plan.map((x)=>_line(Icons.restaurant,'${x['day']} — ${x['meal']} • ${x['estimatedCost']} FCFA')).toList()),
-    const SizedBox(height:12),Text(t('Cameroon meal library','Bibliothèque de repas camerounais'),style:const TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
-    ...meals.map((m)=>Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.restaurant)),title:Text(m[0] as String),subtitle:Text(m[1].toString()+' • '+m[2].toString()+' FCFA'),trailing:IconButton(icon:const Icon(Icons.add_circle),onPressed:()=>_addExpense((m[2] as num).toDouble())))))
+    _sectionHeader(t('Living menu','Menu vivant'),t('Your meals are editable, teachable and used by the planner.','Vos repas sont modifiables, enrichissables et utilisés par le planificateur.'),Icons.restaurant_menu),
+    Row(children:[
+      Expanded(child:FilledButton.icon(onPressed:()=>_showMealEditor(),icon:const Icon(Icons.add),label:Text(t('Teach a meal','Ajouter un repas')))),
+      const SizedBox(width:8),Expanded(child:OutlinedButton.icon(onPressed:_autoPlan,icon:const Icon(Icons.auto_awesome),label:Text(t('Replan','Replanifier')))),
+    ]),
+    const SizedBox(height:12),_card(t('Live weekly plan','Plan hebdomadaire dynamique'),plan.map((x)=>_line(Icons.restaurant,'\${x['day']} — \${x['meal']} • \${x['estimatedCost']} FCFA')).toList()),
+    const SizedBox(height:12),_card(t('Meal library','Bibliothèque des repas'),[
+      ...List.generate(meals.length,(i){final m=meals[i];final hasRecipe=m.length>3&&m[3] is List;return Card(margin:const EdgeInsets.only(bottom:8),child:ListTile(onTap:()=>_showMealEditor(i),leading:CircleAvatar(child:Icon(hasRecipe?Icons.psychology:Icons.restaurant)),title:Text(m[0].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('\${m[1]} • \${m[2]} FCFA\${hasRecipe?' • '+t('learned recipe','recette apprise'):''}'),trailing:PopupMenuButton<String>(onSelected:(v){if(v=='edit')_showMealEditor(i);if(v=='delete')_deleteMeal(i);},itemBuilder:(_)=>[PopupMenuItem(value:'edit',child:Text(t('Edit','Modifier'))),PopupMenuItem(value:'delete',child:Text(t('Remove','Retirer')))]));}),
+    ]),
   ]);
 
   Widget _snackPage()=>ListView(padding:const EdgeInsets.all(16),children:[
@@ -416,7 +442,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       for(var i=0;i<shopping.length;i++)CheckboxListTile(value:shopping[i]['purchased']==true,onChanged:(v)=>_purchaseShopping(i,v??false),title:Text(shopping[i]['name'].toString()),subtitle:Text(shopping[i]['suggestedQty'].toString()+' '+shopping[i]['unit'].toString()+' • '+shopping[i]['priority'].toString()))
     ]),
     FilledButton.icon(onPressed:_showAddStock,icon:const Icon(Icons.add),label:Text(t('Add stock','Ajouter stock'))),
-    FilledButton.icon(onPressed:_showAddMeal,icon:const Icon(Icons.restaurant_menu),label:Text(t('Add meal','Ajouter un repas')))
+    const SizedBox(height:8),OutlinedButton.icon(onPressed:()=>_showMealEditor(),icon:const Icon(Icons.restaurant_menu),label:Text(t('Teach a new meal','Ajouter un repas au menu')))
   ]);
 
   Widget _carePage()=>ListView(padding:const EdgeInsets.all(16),children:[
@@ -488,7 +514,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     final meal=_todayMeal();
     final usingLeftover=leftovers.isNotEmpty && leftovers.first['name'].toString()==meal;
     if(plan.isEmpty && !usingLeftover || meal=='Plan your week') return;
-    final recipe=HouseholdEngine.recipeFor(meal);
+    final recipe=_mealRecipe(meal);
     if(recipe.isNotEmpty){
       final next=HouseholdEngine.consumeRecipe(pantry,recipe);
       setState(()=>pantry..clear()..addAll(next));
@@ -554,7 +580,23 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
 
   void _addExpense(double amount){setState(()=>spent+=amount);_save();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(amount.toStringAsFixed(0)+' FCFA '+t('added to food spending','ajoutés aux dépenses nourriture'))));}
-  void _showAddStock(){final c=TextEditingController();showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('Add pantry item','Ajouter un article')),content:TextField(controller:c,decoration:InputDecoration(labelText:t('Name','Nom'))),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text(t('Cancel','Annuler'))),FilledButton(onPressed:(){if(c.text.trim().isNotEmpty){setState(()=>pantry.add({'name':c.text.trim(),'qty':1.0,'unit':'item','min':0.0}));_refreshShopping();}Navigator.pop(context);},child:Text(t('Add','Ajouter')))]));}
+  Future<void> _showAddStock() async {
+    final name=TextEditingController(),qty=TextEditingController(text:'1'),min=TextEditingController(text:'0'),useBy=TextEditingController();
+    String unit='item',location='Dry store';
+    await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>StatefulBuilder(builder:(sheet,setSheet)=>Padding(
+      padding:EdgeInsets.only(left:20,right:20,top:10,bottom:MediaQuery.of(sheet).viewInsets.bottom+20),
+      child:SingleChildScrollView(child:Column(children:[
+        Text(t('Add something to the home','Ajouter quelque chose à la maison'),style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800)),
+        TextField(controller:name,decoration:InputDecoration(labelText:t('Item name','Nom de l’article'))),
+        Row(children:[Expanded(child:TextField(controller:qty,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Quantity','Quantité')))),const SizedBox(width:8),Expanded(child:DropdownButtonFormField<String>(value:unit,items:['item','kg','g','L','ml','piece','bunches'].map((u)=>DropdownMenuItem(value:u,child:Text(u))).toList(),onChanged:(v){if(v!=null)setSheet(()=>unit=v);},decoration:InputDecoration(labelText:t('Unit','Unité'))))]),
+        TextField(controller:min,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Alert below','Alerte en dessous de'))),
+        DropdownButtonFormField<String>(value:location,items:['Dry store','Fridge','Freezer'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v){if(v!=null)setSheet(()=>location=v);},decoration:InputDecoration(labelText:t('Where','Où'))),
+        TextField(controller:useBy,decoration:InputDecoration(labelText:t('Use-by date (optional)','Date limite (facultatif)'))),
+        const SizedBox(height:14),SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:(){final n=name.text.trim();if(n.isEmpty)return;setState(()=>pantry.add({'name':n,'qty':double.tryParse(qty.text.replaceAll(',','.'))??1,'unit':unit,'min':double.tryParse(min.text.replaceAll(',','.'))??0,'location':location,'useBy':useBy.text.trim()}));_refreshShopping(save:false);_save();Navigator.pop(sheet);ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Added to live storage.','Ajouté au stock vivant.'))));},icon:const Icon(Icons.add),label:Text(t('Add to live storage','Ajouter au stock vivant')))),
+      ]))));
+  }
+
+
   void _showCopilot() async {
     await _initSpeech();
     if(!mounted)return;
@@ -776,7 +818,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(mealIndex>=0 && hasAny(['cook','cuisine','cuisiner','prepare','prépare'])){
       final mealName=meals[mealIndex][0].toString();
       if(leftovers.isNotEmpty && q.contains('leftover')){leftovers.removeAt(0);await _save();await _speak(t('I used the saved leftover of '+mealName+'.','J’ai utilisé le reste enregistré de '+mealName+'.'));return;}
-      final recipe=HouseholdEngine.recipeFor(mealName);
+      final recipe=_mealRecipe(mealName);
       if(recipe.isEmpty){await _speak(t('The recipe for '+mealName+' is not defined yet.','La recette de '+mealName+' n’est pas encore définie.'));return;}
       setState(()=>pantry..clear()..addAll(HouseholdEngine.consumeRecipe(pantry,recipe)));
       leftovers.add({'name':mealName,'portions':1,'useBy':'Tomorrow'});_useGas(0.05,'Voice cooking: '+mealName);_refreshShopping(save:false);await _save();
@@ -840,7 +882,26 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     await _speak(answer);
   }
 
-  Future<void> _showAddMeal() async {
+
+  String _humanGreeting(){
+    final hour=DateTime.now().hour;
+    final hello=hour<12?t('Good morning','Bonjour'):hour<18?t('Good afternoon','Bon après-midi'):t('Good evening','Bonsoir');
+    if(remaining<0)return hello+', your food budget is over. Let us slow spending down and use what is already at home.';
+    if(lowStock>0)return hello+', I noticed '+lowStock.toString()+' item'+(lowStock>1?'s':'')+' running low. I can help you plan around them.';
+    if(leftovers.isNotEmpty)return hello+', you have a saved leftover. I would use that first to avoid waste.';
+    return hello+', your home is ready. Tell me what you want to cook, buy, plan or organize.';
+  }
+  List<Map<String,dynamic>> _mealRecipe(String name){
+    final i=meals.indexWhere((m)=>m.isNotEmpty&&m[0].toString().toLowerCase()==name.toLowerCase());
+    if(i>=0&&meals[i].length>3&&meals[i][3] is List)return (meals[i][3] as List).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
+    return HouseholdEngine.recipeFor(name);
+  }
+  List<Map<String,dynamic>> _parseRecipe(String raw){
+    final out=<Map<String,dynamic>>[];
+    for(final part in raw.split(',')){
+      final p=part.trim();
+      if(p.isEmpty)continue;
+      final m=RegExp(r'^(.+?)\s*:\s*(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|piece|pieces|bunch|bunches|régime|régimes)?
     final name=TextEditingController(),region=TextEditingController(text:'All'),cost=TextEditingController(text:'3500');
     await showDialog(context:context,builder:(_)=>AlertDialog(title:Text(t('Add meal','Ajouter un repas')),content:Column(mainAxisSize:MainAxisSize.min,children:[
       TextField(controller:name,decoration:InputDecoration(labelText:t('Meal name','Nom du repas'))),
@@ -848,6 +909,73 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       TextField(controller:cost,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Estimated cost FCFA','Coût estimé FCFA'))),
     ]),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text(t('Cancel','Annuler'))),FilledButton(onPressed:(){if(name.text.trim().isNotEmpty){setState(()=>meals.add([name.text.trim(),region.text.trim(),double.tryParse(cost.text)??0]));_save();}Navigator.pop(context);},child:Text(t('Add','Ajouter')))]));
   }
+
+  @override void dispose(){_speech.stop();_tts.stop();super.dispose();}
+},caseSensitive:false).firstMatch(p);
+      if(m==null)continue;
+      final name=m.group(1)!.trim();
+      final qty=double.tryParse(m.group(2)!.replaceAll(',','.'))??0;
+      var unit=(m.group(3)??'item').toLowerCase();
+      if(unit=='pieces')unit='piece';
+      if(unit=='bunch'||unit=='régime'||unit=='régimes')unit='bunches';
+      out.add({'name':name,'qty':qty,'unit':unit});
+    }
+    return out;
+  }
+  Future<void> _showBudgetEditor() async {
+    final controller=TextEditingController(text:budget.toStringAsFixed(0));
+    await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>Padding(
+      padding:EdgeInsets.only(left:20,right:20,top:10,bottom:MediaQuery.of(sheet).viewInsets.bottom+20),
+      child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(t('Let’s set your monthly food budget','Définissons votre budget alimentaire mensuel'),style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800)),
+        const SizedBox(height:8),Text(t('I will use this limit when planning meals and shopping.','J’utiliserai cette limite pour planifier les repas et les achats.')),
+        const SizedBox(height:14),TextField(controller:controller,autofocus:true,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Monthly budget (FCFA)','Budget mensuel (FCFA)'),prefixIcon:const Icon(Icons.account_balance_wallet))),
+        const SizedBox(height:14),Row(children:[
+          Expanded(child:OutlinedButton(onPressed:()=>controller.text='150000',child:const Text('150k'))),
+          const SizedBox(width:8),Expanded(child:OutlinedButton(onPressed:()=>controller.text='250000',child:const Text('250k'))),
+          const SizedBox(width:8),Expanded(child:OutlinedButton(onPressed:()=>controller.text='350000',child:const Text('350k'))),
+        ]),
+        const SizedBox(height:14),SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:(){
+          final value=double.tryParse(controller.text.replaceAll(' ',''))??budget;
+          if(value>0){setState(()=>budget=value);_autoPlan(save:false);_refreshShopping(save:false);_save();}
+          Navigator.pop(sheet);
+        },icon:const Icon(Icons.check),label:Text(t('Save budget & refresh plan','Enregistrer et actualiser le plan')))),
+      ]),
+    ));
+  }
+  Future<void> _showMealEditor([int? index]) async {
+    final existing=index==null?null:meals[index];
+    final name=TextEditingController(text:existing?[0]?.toString()??'');
+    final region=TextEditingController(text:existing?[1]?.toString()??'Centre');
+    final cost=TextEditingController(text:existing?[2]?.toString()??'3500');
+    final recipeText=TextEditingController(text:existing!=null&&existing.length>3&&existing[3] is List?(existing[3] as List).map((e)=>e['name'].toString()+':'+e['qty'].toString()+' '+e['unit'].toString()).join(', '):'');
+    await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>Padding(
+      padding:EdgeInsets.only(left:20,right:20,top:10,bottom:MediaQuery.of(sheet).viewInsets.bottom+20),
+      child:SingleChildScrollView(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(index==null?t('Teach me a new meal','Apprenez-moi un nouveau repas'):t('Let’s improve this meal','Améliorons ce repas'),style:const TextStyle(fontSize:21,fontWeight:FontWeight.w800)),
+        const SizedBox(height:6),Text(t('This meal becomes part of the living menu and can be used by the planner and Copilot.','Ce repas devient une partie du menu vivant et peut être utilisé par le planificateur et le Copilote.')),
+        const SizedBox(height:14),TextField(controller:name,decoration:InputDecoration(labelText:t('Meal name','Nom du repas'))),
+        TextField(controller:region,decoration:InputDecoration(labelText:t('Region','Région'))),
+        TextField(controller:cost,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Estimated cost FCFA','Coût estimé FCFA'))),
+        TextField(controller:recipeText,maxLines:3,decoration:InputDecoration(labelText:t('Ingredients (optional)','Ingrédients (facultatif)'),hintText:t('rice:1 kg, tomatoes:0.5 kg, onions:0.2 kg','riz:1 kg, tomates:0.5 kg, oignons:0.2 kg'))),
+        const SizedBox(height:14),SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:(){
+          final n=name.text.trim();if(n.isEmpty)return;final rr=_parseRecipe(recipeText.text);
+          final row=<dynamic>[n,region.text.trim().isEmpty?'All':region.text.trim(),double.tryParse(cost.text.replaceAll(' ',''))??0];if(rr.isNotEmpty)row.add(rr);
+          setState(()=>index==null?meals.add(row):meals[index]=row);_autoPlan(save:false);_refreshShopping(save:false);_save();Navigator.pop(sheet);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(index==null?t('Meal added. The home intelligence has learned it.','Repas ajouté. L’intelligence maison l’a appris.'):t('Meal updated and replanned.','Repas mis à jour et planifié à nouveau.'))));
+        },icon:const Icon(Icons.auto_awesome),label:Text(index==null?t('Add to living menu','Ajouter au menu vivant'):t('Save & replan','Enregistrer et replanifier')))),
+      ])),
+    ));
+  }
+  void _deleteMeal(int index){
+    if(index<0||index>=meals.length)return;final name=meals[index][0].toString();
+    showDialog(context:context,builder:(dialog)=>AlertDialog(title:Text(t('Remove meal?','Retirer le repas ?')),content:Text(t('Remove '+name+' from your living menu?','Retirer '+name+' de votre menu vivant ?')),actions:[
+      TextButton(onPressed:()=>Navigator.pop(dialog),child:Text(t('Keep','Garder'))),
+      FilledButton(onPressed:(){setState(()=>meals.removeAt(index));_autoPlan(save:false);_refreshShopping(save:false);_save();Navigator.pop(dialog);},child:Text(t('Remove','Retirer')))
+    ]));
+  }
+
+  Future<void> _showAddMeal() async { await _showMealEditor(); }
 
   @override void dispose(){_speech.stop();_tts.stop();super.dispose();}
 }
