@@ -106,7 +106,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         NavigationDestination(icon:Icon(Icons.cleaning_services_outlined),label:t('Care','Maison')),
         NavigationDestination(icon:Icon(Icons.bar_chart),label:t('Reports','Rapports')),
       ])));
-  Widget _page()=>[_homePage(),_mealsPage(),_storagePage(),_carePage(),_reportsPage()][tab];
+  Widget _page()=>[_homePage(),_mealsPage(),_storagePage(),_carePage(),_reportsPage(),_snackPage()][tab];
 
   Widget _homePage()=>ListView(padding:const EdgeInsets.all(16),children:[
     _hero(),
