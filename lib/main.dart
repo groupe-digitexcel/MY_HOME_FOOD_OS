@@ -370,6 +370,12 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
             Text(t('My living weekly menu','Mon menu hebdomadaire vivant'),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w800)),
             const SizedBox(height:6),
             Text(t('Every day is editable. Choose a meal, swap it, or regenerate the whole week.','Chaque jour est modifiable. Choisissez un repas, échangez-le ou régénérez toute la semaine.')),
+            const SizedBox(height:10),
+            Card(color:Theme.of(sheet).colorScheme.secondaryContainer,child:Padding(padding:const EdgeInsets.all(12),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Icon(Icons.auto_awesome,color:Theme.of(sheet).colorScheme.onSecondaryContainer),
+              const SizedBox(width:10),
+              Expanded(child:Text(_weeklyMenuInsight(),style:TextStyle(color:Theme.of(sheet).colorScheme.onSecondaryContainer,fontWeight:FontWeight.w600))),
+            ]))),
             const SizedBox(height:14),
             ...List.generate(7,(i){
               final row=plan.length>i?plan[i]:<String,dynamic>{};
