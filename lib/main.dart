@@ -345,29 +345,52 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     await showModalBottomSheet<void>(
       context:context,isScrollControlled:true,showDragHandle:true,
       builder:(sheet)=>StatefulBuilder(builder:(sheet,setSheet){
+        final candidates=HouseholdEngine.mealDecisions(meals:meals,pantry:pantry,leftovers:leftovers,budgetLimit:remaining>0?remaining:0);
+        final selectedDecision=candidates.where((x)=>x['name'].toString()==selected).toList();
         return Padding(
           padding:EdgeInsets.only(left:16,right:16,top:12,bottom:MediaQuery.of(sheet).viewInsets.bottom+18),
-          child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+          child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
             Text(t('Choose '+dayNames[dayIndex]+' meal','Choisir le repas du '+dayNames[dayIndex]),style:const TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
+            const SizedBox(height:6),
+            Text(t('I show budget and pantry intelligence before you save.','Je montre l’intelligence budget et stock avant l’enregistrement.')),
             const SizedBox(height:12),
             DropdownButtonFormField<String>(
               initialValue:meals.any((m)=>m.isNotEmpty&&m[0].toString()==selected)?selected:null,
-              items:meals.where((m)=>m.isNotEmpty).map((m)=>DropdownMenuItem<String>(value:m[0].toString(),child:Text(m[0].toString()))).toList(),
+              items:meals.where((m)=>m.isNotEmpty).map((m){
+                final name=m[0].toString();
+                final d=candidates.where((x)=>x['name'].toString()==name).toList();
+                final label=d.isEmpty?name:name+' • '+(d.first['estimatedCost'] as double).toStringAsFixed(0)+' FCFA';
+                return DropdownMenuItem<String>(value:name,child:Text(label,overflow:TextOverflow.ellipsis));
+              }).toList(),
               onChanged:(v){if(v!=null)setSheet(()=>selected=v);},
               decoration:InputDecoration(labelText:t('Meal','Repas')),
             ),
-            const SizedBox(height:8),
-            if(selected.isNotEmpty) Builder(builder:(context){final m=meals.firstWhere((x)=>x[0].toString()==selected,orElse:()=>[selected,'All',0]);return Text(t('Estimated cost: ','Coût estimé : ')+(m[2] as num).toStringAsFixed(0)+' FCFA');}),
+            const SizedBox(height:10),
+            if(selected.isNotEmpty)
+              Builder(builder:(context){
+                final m=meals.firstWhere((x)=>x[0].toString()==selected,orElse:()=>[selected,'All',0]);
+                final d=selectedDecision.isNotEmpty?selectedDecision.first:null;
+                return Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Text(t('Decision support','Aide à la décision'),style:const TextStyle(fontWeight:FontWeight.w800)),
+                  const SizedBox(height:6),
+                  Text(t('Estimated cost: ','Coût estimé : ')+(m[2] as num).toStringAsFixed(0)+' FCFA'),
+                  if(d!=null)...[
+                    Text(d['pantryReady']==true?t('✓ Pantry ready','✓ Stock disponible'):t('• Shopping needed','• Achat nécessaire')),
+                    Text(d['withinBudget']==true?t('✓ Within current budget','✓ Dans le budget actuel'):t('• Above current remaining budget','• Au-dessus du budget restant')),
+                    if((d['missingItems'] as List).isNotEmpty)Text(t('Missing: ','Manquant : ')+(d['missingItems'] as List).join(', ')),
+                  ],
+                ])));
+              }),
             const SizedBox(height:14),
             SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:(){
               if(selected.isEmpty)return;
               final m=meals.firstWhere((x)=>x[0].toString()==selected);
-              final row=<String,dynamic>{'day':dayNames[dayIndex],'meal':m[0].toString(),'region':m.length>1?m[1].toString():'All','estimatedCost':(m[2] as num).toDouble(),'leftoverPlan':'Use leftovers first when available.','reason':'Manually selected by household.'};
+              final row=<String,dynamic>{'day':dayNames[dayIndex],'meal':m[0].toString(),'region':m.length>1?m[1].toString():'All','estimatedCost':(m[2] as num).toDouble(),'leftoverPlan':'Use leftovers first when available.','reason':'Selected with live household decision support.'};
               setState((){while(plan.length<7){final j=plan.length;plan.add({'day':dayNames[j],'meal':'','region':'All','estimatedCost':0.0});}plan[dayIndex]=row;});
               _refreshShopping(save:false);_save();Navigator.pop(sheet);
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t(dayNames[dayIndex]+' updated. Shopping and household intelligence refreshed.','Repas du '+dayNames[dayIndex]+' mis à jour. Les achats et l’intelligence maison ont été actualisés.'))));
             },icon:const Icon(Icons.check),label:Text(t('Save this day','Enregistrer ce jour')))),
-          ]),
+          ])),
         );
       }),
     );
