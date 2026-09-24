@@ -462,6 +462,113 @@ class HouseholdEngine {
     return rows.take(max(1, limit)).toList();
   }
 
+  /// Builds a month-or-more food basket from the living meal library and current stock.
+  /// It subtracts usable pantry quantities, estimates a transparent cost, and
+  /// caps the funded basket to the household food budget.
+  static List<Map<String, dynamic>> monthlyShoppingPlan({
+    required List<dynamic> meals,
+    required List<Map<String, dynamic>> pantry,
+    required double budget,
+    required int days,
+    required int people,
+    int mealsPerDay = 2,
+  }) {
+    final safeDays = max(1, days);
+    final safePeople = max(1, people);
+    final safeMealsPerDay = max(1, mealsPerDay);
+    final factor = safePeople / 4.0;
+    final mealPool = meals.where((m) => m is List && m.length >= 3).toList();
+    if (mealPool.isEmpty || budget <= 0) return [];
+    final totals = <String, Map<String, dynamic>>{};
+    final unitCosts = <String, List<double>>{};
+    for (var day = 0; day < safeDays; day++) {
+      for (var slot = 0; slot < safeMealsPerDay; slot++) {
+        final raw = mealPool[(day * safeMealsPerDay + slot) % mealPool.length] as List;
+        final mealCost = (raw[2] as num).toDouble();
+        final recipe = recipeFor(raw[0].toString());
+        if (recipe.isEmpty) continue;
+        final recipeTotal = recipe.fold<double>(0, (sum, x) => sum + (x['qty'] as num? ?? 0).toDouble());
+        for (final ingredient in recipe) {
+          final name = ingredient['name'].toString();
+          final key = name.trim().toLowerCase();
+          final qty = (ingredient['qty'] as num? ?? 0).toDouble() * factor;
+          final unit = ingredient['unit'].toString();
+          final row = totals[key] ?? {'name': name, 'requiredQty': 0.0, 'unit': unit};
+          row['requiredQty'] = (row['requiredQty'] as double) + qty;
+          totals[key] = row;
+          final estimatedUnit = recipeTotal <= 0 ? 0.0 : mealCost / recipeTotal;
+          unitCosts.putIfAbsent(key, () => <double>[]).add(estimatedUnit);
+        }
+      }
+    }
+    final rows = <Map<String, dynamic>>[];
+    var totalEstimate = 0.0;
+    for (final row in totals.values) {
+      final key = row['name'].toString().trim().toLowerCase();
+      final pantryItem = pantry.firstWhere(
+        (x) => x['name'].toString().trim().toLowerCase() == key,
+        orElse: () => <String, dynamic>{},
+      );
+      final stock = (pantryItem['qty'] as num? ?? 0).toDouble();
+      final required = (row['requiredQty'] as num).toDouble();
+      final purchase = max(0.0, required - stock);
+      if (purchase <= 0) continue;
+      final costs = unitCosts[key] ?? const <double>[];
+      final unitCost = costs.isEmpty ? 0.0 : costs.reduce((a, b) => a + b) / costs.length;
+      final estimated = purchase * unitCost;
+      totalEstimate += estimated;
+      final location = pantryItem['location']?.toString() ?? 'Dry store';
+      final longLife = const ['rice','beans','palm oil','cassava','yam','groundnuts'].contains(key);
+      rows.add({
+        'name': row['name'],
+        'unit': row['unit'],
+        'requiredQty': required,
+        'stockQty': stock,
+        'purchaseQty': purchase,
+        'estimatedCost': estimated,
+        'priority': longLife || location == 'Dry store' ? 'essential' : 'fresh',
+        'reason': stock > 0 ? 'Top up after using current stock.' : 'No usable stock recorded.',
+      });
+    }
+    rows.sort((a, b) {
+      final ap = a['priority'] == 'essential' ? 0 : 1;
+      final bp = b['priority'] == 'essential' ? 0 : 1;
+      if (ap != bp) return ap.compareTo(bp);
+      return (b['estimatedCost'] as double).compareTo(a['estimatedCost'] as double);
+    });
+    var remainingBudget = budget;
+    for (final row in rows) {
+      final estimate = (row['estimatedCost'] as double);
+      final funded = estimate <= remainingBudget ? estimate : max(0.0, remainingBudget);
+      final unitCost = (row['purchaseQty'] as double) <= 0 ? 0.0 : estimate / (row['purchaseQty'] as double);
+      final fundedQty = unitCost <= 0 ? row['purchaseQty'] as double : funded / unitCost;
+      row['fundedQty'] = min(row['purchaseQty'] as double, fundedQty);
+      row['plannedCost'] = funded;
+      row['budgetStatus'] = funded >= estimate - 0.01 ? 'funded' : 'partial';
+      remainingBudget = max(0.0, remainingBudget - funded);
+    }
+    return rows;
+  }
+
+  static Map<String, dynamic> monthlyCoverage({
+    required double budget,
+    required double spent,
+    required double estimatedBasketCost,
+    required int targetDays,
+  }) {
+    final available = max(0.0, budget - spent);
+    final safeDays = max(1, targetDays);
+    final dailyNeed = estimatedBasketCost / safeDays;
+    final coveredDays = dailyNeed <= 0 ? safeDays.toDouble() : min(safeDays.toDouble(), available / dailyNeed);
+    return {
+      'availableBudget': available,
+      'estimatedBasketCost': estimatedBasketCost,
+      'coveredDays': coveredDays,
+      'coveragePercent': (coveredDays / safeDays * 100).clamp(0.0, 100.0),
+      'shortfall': max(0.0, estimatedBasketCost - available),
+    };
+  }
+
   /// Returns a short deterministic recommendation for the household dashboard.
   static String householdAdvice({
     required int lowStock,
