@@ -58,6 +58,46 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),ph=p.getString('purchaseHistory'),sn=p.getString('snacks'),gl=p.getString('gasLogs'),lo=p.getString('leftovers'),bh=p.getString('budgetHistory'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(ph!=null){final x=jsonDecode(ph) as List; purchaseHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sn!=null){final x=jsonDecode(sn) as List; snacks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} gasLevel=p.getDouble('gasLevel')??1.0; gasCapacity=p.getDouble('gasCapacity')??1.0; gasSpent=p.getDouble('gasSpent')??0; _freezerCapacity=p.getDouble('freezerCapacity')??6.0; if(gl!=null){final x=jsonDecode(gl) as List; gasLogs..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(bh!=null){final x=jsonDecode(bh) as List; budgetHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
   Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('freezerCapacity',_freezerCapacity); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('purchaseHistory',jsonEncode(purchaseHistory)); await p.setString('snacks',jsonEncode(snacks)); await p.setDouble('gasLevel',gasLevel); await p.setDouble('gasCapacity',gasCapacity); await p.setDouble('gasSpent',gasSpent); await p.setString('gasLogs',jsonEncode(gasLogs)); await p.setString('leftovers',jsonEncode(leftovers)); await p.setString('budgetHistory',jsonEncode(budgetHistory)); }
   String t(String en,String fr)=>lang=='FR'?fr:en;
+  void _feedback(String en,String fr,{bool important=false}) {
+    if(!mounted)return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      behavior:SnackBarBehavior.floating,
+      duration:Duration(seconds:important?4:2),
+      content:Text(t(en,fr)),
+      action:SnackBarAction(label:'OK',onPressed:(){}),
+    ));
+  }
+  Future<void> _performNextBestAction() async {
+    if(remaining<0){setState(()=>tab=2);_feedback('Budget is over. I opened Storage so we can use what is already at home.','Le budget est dépassé. J’ai ouvert Stock pour utiliser ce qui est déjà à la maison.',important:true);return;}
+    final urgent=pantry.where((x){
+      final d=DateTime.tryParse(x['useBy']?.toString()??'');
+      return d!=null&&d.difference(DateTime.now()).inDays<=2&&(x['qty'] as num? ?? 0)>0;
+    }).toList();
+    if(urgent.isNotEmpty){
+      final name=urgent.first['name'].toString();
+      final index=pantry.indexWhere((x)=>x['name'].toString()==name);
+      if(index>=0){
+        final unit=pantry[index]['unit'].toString();
+        final current=(pantry[index]['qty'] as num? ?? 0).toDouble();
+        setState(()=>pantry[index]['qty']=max(0,current-1));
+        _refreshShopping(save:false);await _save();
+        _feedback('I used 1 '+unit+' of '+name+' to reduce waste.','J’ai utilisé 1 '+unit+' de '+name+' pour réduire le gaspillage.');
+      }
+      return;
+    }
+    if(leftovers.isNotEmpty){
+      final used=leftovers.removeAt(0);
+      await _save();setState((){});
+      _feedback('I moved the saved leftover '+used['name'].toString()+' to first priority.','J’ai mis le reste '+used['name'].toString()+' en priorité.');
+      return;
+    }
+    if(lowStock>0){setState(()=>tab=2);_feedback('I opened Storage: '+lowStock.toString()+' item(s) need attention.','J’ai ouvert Stock : '+lowStock.toString()+' article(s) nécessitent votre attention.');return;}
+    final snackIndex=snacks.indexWhere((x)=>x['prepared']!=true);
+    if(snackIndex>=0){setState(()=>tab=5);_feedback('I opened the next school snack.','J’ai ouvert le prochain goûter scolaire.');return;}
+    final openTasks=tasks.where((x)=>x['done']!=true).length;
+    if(openTasks>0){setState(()=>tab=3);_feedback('I opened House Care: '+openTasks.toString()+' task(s) are waiting.','J’ai ouvert Maison : '+openTasks.toString()+' tâche(s) attendent.');return;}
+    _showCopilot();
+  }
   double get remaining=>budget-spent;
   int get lowStock=>pantry.where((x)=>x['qty']<=x['min']).length;
   String _todayMeal(){
