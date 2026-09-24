@@ -24,6 +24,9 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   String _transcript = '';
   String lang = 'EN';
   double budget = 250000, spent = 0;
+  int _adults = 2, _children = 2, _mealsPerDay = 2, _planningDays = 30;
+  bool _schoolSnacksIncluded = true;
+  final monthlyPlan = <Map<String,dynamic>>[];
   double _freezerCapacity = 6.0;
   final budgetHistory = <Map<String,dynamic>>[];
   double gasLevel = 1.0, gasCapacity = 1.0, gasSpent = 0;
@@ -55,8 +58,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   ];
 
   @override void initState(){super.initState();_load();}
-  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),ph=p.getString('purchaseHistory'),sn=p.getString('snacks'),gl=p.getString('gasLogs'),lo=p.getString('leftovers'),bh=p.getString('budgetHistory'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(ph!=null){final x=jsonDecode(ph) as List; purchaseHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sn!=null){final x=jsonDecode(sn) as List; snacks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} gasLevel=p.getDouble('gasLevel')??1.0; gasCapacity=p.getDouble('gasCapacity')??1.0; gasSpent=p.getDouble('gasSpent')??0; _freezerCapacity=p.getDouble('freezerCapacity')??6.0; if(gl!=null){final x=jsonDecode(gl) as List; gasLogs..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(bh!=null){final x=jsonDecode(bh) as List; budgetHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
-  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('freezerCapacity',_freezerCapacity); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('purchaseHistory',jsonEncode(purchaseHistory)); await p.setString('snacks',jsonEncode(snacks)); await p.setDouble('gasLevel',gasLevel); await p.setDouble('gasCapacity',gasCapacity); await p.setDouble('gasSpent',gasSpent); await p.setString('gasLogs',jsonEncode(gasLogs)); await p.setString('leftovers',jsonEncode(leftovers)); await p.setString('budgetHistory',jsonEncode(budgetHistory)); }
+  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),ph=p.getString('purchaseHistory'),sn=p.getString('snacks'),gl=p.getString('gasLogs'),lo=p.getString('leftovers'),bh=p.getString('budgetHistory'),mp=p.getString('monthlyPlan'); _adults=p.getInt('adults')??2; _children=p.getInt('children')??2; _mealsPerDay=p.getInt('mealsPerDay')??2; _planningDays=p.getInt('planningDays')??30; _schoolSnacksIncluded=p.getBool('schoolSnacksIncluded')??true; if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(ph!=null){final x=jsonDecode(ph) as List; purchaseHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sn!=null){final x=jsonDecode(sn) as List; snacks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} gasLevel=p.getDouble('gasLevel')??1.0; gasCapacity=p.getDouble('gasCapacity')??1.0; gasSpent=p.getDouble('gasSpent')??0; _freezerCapacity=p.getDouble('freezerCapacity')??6.0; if(gl!=null){final x=jsonDecode(gl) as List; gasLogs..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(bh!=null){final x=jsonDecode(bh) as List; budgetHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(mp!=null){final x=jsonDecode(mp) as List; monthlyPlan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); if(monthlyPlan.isEmpty)_refreshMonthlyPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
+  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('freezerCapacity',_freezerCapacity); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('purchaseHistory',jsonEncode(purchaseHistory)); await p.setString('snacks',jsonEncode(snacks)); await p.setDouble('gasLevel',gasLevel); await p.setDouble('gasCapacity',gasCapacity); await p.setDouble('gasSpent',gasSpent); await p.setString('gasLogs',jsonEncode(gasLogs)); await p.setString('leftovers',jsonEncode(leftovers)); await p.setString('budgetHistory',jsonEncode(budgetHistory)); await p.setInt('adults',_adults); await p.setInt('children',_children); await p.setInt('mealsPerDay',_mealsPerDay); await p.setInt('planningDays',_planningDays); await p.setBool('schoolSnacksIncluded',_schoolSnacksIncluded); await p.setString('monthlyPlan',jsonEncode(monthlyPlan)); }
   String t(String en,String fr)=>lang=='FR'?fr:en;
   void _feedback(String en,String fr,{bool important=false}) {
     if(!mounted)return;
@@ -68,7 +71,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ));
   }
   Future<void> _performNextBestAction() async {
-    if(remaining<0){setState(()=>tab=2);_feedback('Budget is over. I opened Storage so we can use what is already at home.','Le budget est dépassé. J’ai ouvert Stock pour utiliser ce qui est déjà à la maison.',important:true);return;}
+    if(remaining<0){_goToTab(2);_feedback('Budget is over. I opened Storage so we can use what is already at home.','Le budget est dépassé. J’ai ouvert Stock pour utiliser ce qui est déjà à la maison.',important:true);return;}
     final urgent=pantry.where((x){
       final d=DateTime.tryParse(x['useBy']?.toString()??'');
       return d!=null&&d.difference(DateTime.now()).inDays<=2&&(x['qty'] as num? ?? 0)>0;
@@ -91,13 +94,28 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       _feedback('I moved the saved leftover '+used['name'].toString()+' to first priority.','J’ai mis le reste '+used['name'].toString()+' en priorité.');
       return;
     }
-    if(lowStock>0){setState(()=>tab=2);_feedback('I opened Storage: '+lowStock.toString()+' item(s) need attention.','J’ai ouvert Stock : '+lowStock.toString()+' article(s) nécessitent votre attention.');return;}
+    if(lowStock>0){_goToTab(2);_feedback('I opened Storage: '+lowStock.toString()+' item(s) need attention.','J’ai ouvert Stock : '+lowStock.toString()+' article(s) nécessitent votre attention.');return;}
     final snackIndex=snacks.indexWhere((x)=>x['prepared']!=true);
-    if(snackIndex>=0){setState(()=>tab=5);_feedback('I opened the next school snack.','J’ai ouvert le prochain goûter scolaire.');return;}
+    if(snackIndex>=0){_goToTab(5);_feedback('I opened the next school snack.','J’ai ouvert le prochain goûter scolaire.');return;}
     final openTasks=tasks.where((x)=>x['done']!=true).length;
-    if(openTasks>0){setState(()=>tab=3);_feedback('I opened House Care: '+openTasks.toString()+' task(s) are waiting.','J’ai ouvert Maison : '+openTasks.toString()+' tâche(s) attendent.');return;}
+    if(openTasks>0){_goToTab(3);_feedback('I opened House Care: '+openTasks.toString()+' task(s) are waiting.','J’ai ouvert Maison : '+openTasks.toString()+' tâche(s) attendent.');return;}
     _showCopilot();
   }
+  void _goToTab(int index) {
+    if(index<0||index>5)return;
+    if(mounted)setState(()=>tab=index);
+  }
+  int get _householdPeople=>max(1,_adults+_children);
+  double get _monthlyBasketCost=>monthlyPlan.fold<double>(0,(sum,x)=>sum+(x['plannedCost'] as num? ?? 0).toDouble());
+  void _refreshMonthlyPlan({bool save=true}) {
+    final rows=HouseholdEngine.monthlyShoppingPlan(
+      meals:meals, pantry:pantry, budget:max(0,remaining),
+      days:_planningDays, people:_householdPeople, mealsPerDay:_mealsPerDay,
+    );
+    setState(()=>monthlyPlan..clear()..addAll(rows));
+    if(save)_save();
+  }
+
   double get remaining=>budget-spent;
   int get lowStock=>pantry.where((x)=>x['qty']<=x['min']).length;
   String _todayMeal(){
@@ -129,6 +147,18 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         };
       }
     }
+    for(final x in monthlyPlan){
+      final funded=(x['fundedQty'] as num? ?? 0).toDouble();
+      if(funded<=0)continue;
+      final key=x['name'].toString().toLowerCase();
+      final existing=merged[key];
+      if(existing!=null){
+        existing['suggestedQty']=max((existing['suggestedQty'] as num? ?? 0).toDouble(),funded);
+        existing['priority']='monthly';
+      }else{
+        merged[key]={'name':x['name'],'suggestedQty':funded,'unit':x['unit'],'priority':'monthly','purchased':false};
+      }
+    }
     final next=merged.values.toList();
     setState((){shopping..clear()..addAll(next);});
     if(save)_save();
@@ -142,7 +172,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         actions:[TextButton(onPressed:(){setState(()=>lang=lang=='EN'?'FR':'EN');_save();},child:Text(lang)),IconButton(onPressed:_showCopilot,icon:const Icon(Icons.auto_awesome))]),
       body:_page(),
       floatingActionButton:FloatingActionButton.extended(onPressed:_showCopilot,icon:Icon(_listening?Icons.mic:Icons.auto_awesome),label:Text(_listening?t('Listening…','J’écoute…'):t('Talk to me','Parler'))),
-      bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),destinations:[
+      bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:_goToTab,destinations:[
         NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:t('Home','Accueil')),
         NavigationDestination(icon:Icon(Icons.restaurant_menu),label:t('Meals','Repas')),
         NavigationDestination(icon:Icon(Icons.inventory_2_outlined),label:t('Storage','Stock')),
@@ -150,7 +180,30 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         NavigationDestination(icon:Icon(Icons.bar_chart),label:t('Reports','Rapports')),
         NavigationDestination(icon:Icon(Icons.school_outlined),selectedIcon:Icon(Icons.school),label:t('Snacks','Goûters')),
       ])));
-  Widget _page()=>[_homePage(),_mealsPage(),_storagePage(),_carePage(),_reportsPage(),_snackPage()][tab];
+  Widget _page()=>IndexedStack(index:tab,children:[_homePage(),_mealsPage(),_storagePage(),_carePage(),_reportsPage(),_snackPage()]);
+
+  Widget _monthlyPlannerCard()=>_card(t('MONTHLY FOOD PLAN','PLAN ALIMENTAIRE MENSUEL'),[
+    Text(t('Tell me who lives at home, how many meals you serve, how many days you want covered, and what is already in stock. I will calculate what to buy and keep the basket inside the available budget.','Indiquez qui vit à la maison, le nombre de repas, le nombre de jours à couvrir et le stock actuel. Je calcule quoi acheter en gardant le panier dans le budget disponible.')),
+    const SizedBox(height:10),
+    Wrap(spacing:8,runSpacing:8,children:[
+      Chip(avatar:const Icon(Icons.people),label:Text(_householdPeople.toString()+' '+t('people','personnes'))),
+      Chip(avatar:const Icon(Icons.calendar_month),label:Text(_planningDays.toString()+' '+t('days','jours'))),
+      Chip(avatar:const Icon(Icons.restaurant),label:Text(_mealsPerDay.toString()+' '+t('meals/day','repas/jour'))),
+    ]),
+    const SizedBox(height:8),
+    _line(Icons.account_balance_wallet,t('Available for food: ','Disponible nourriture : ')+remaining.toStringAsFixed(0)+' FCFA'),
+    _line(Icons.shopping_cart,t('Planned funded basket: ','Panier financé : ')+_monthlyBasketCost.toStringAsFixed(0)+' FCFA'),
+    _line(Icons.inventory_2,t('Current stock: ','Stock actuel : ')+pantry.length.toString()+' '+t('tracked items','articles suivis')),
+    const SizedBox(height:10),
+    Row(children:[
+      Expanded(child:FilledButton.icon(onPressed:_showHouseholdSetup,icon:const Icon(Icons.tune),label:Text(t('Set up month','Configurer le mois')))),
+      const SizedBox(width:8),
+      Expanded(child:OutlinedButton.icon(onPressed:(){_refreshMonthlyPlan();_feedback('Monthly basket recalculated from current stock.','Panier mensuel recalculé à partir du stock actuel.');},icon:const Icon(Icons.refresh),label:Text(t('Recalculate','Recalculer')))),
+    ]),
+    const SizedBox(height:8),
+    if(monthlyPlan.isNotEmpty)
+      ...monthlyPlan.take(5).map((x)=>ListTile(contentPadding:EdgeInsets.zero,leading:Icon(x['budgetStatus']=='funded'?Icons.check_circle:Icons.warning_amber),title:Text(x['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text((x['fundedQty'] as num? ?? 0).toStringAsFixed(2)+' '+x['unit'].toString()+' • '+(x['plannedCost'] as num? ?? 0).toStringAsFixed(0)+' FCFA'))),
+  ]);
 
   Widget _homePage()=>ListView(padding:const EdgeInsets.all(16),children:[
     _hero(),
@@ -177,9 +230,9 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       const SizedBox(height:8),
       Wrap(spacing:8,runSpacing:8,children:[
         FilledButton.icon(onPressed:_cookTodayLunch,icon:const Icon(Icons.soup_kitchen),label:Text(t('Cook','Cuisiner'))),
-        FilledButton.tonalIcon(onPressed:()=>setState(()=>tab=2),icon:const Icon(Icons.shopping_cart),label:Text(t('Shop','Achats'))),
-        FilledButton.tonalIcon(onPressed:()=>setState(()=>tab=3),icon:const Icon(Icons.cleaning_services),label:Text(t('Care','Maison'))),
-        FilledButton.tonalIcon(onPressed:()=>setState(()=>tab=5),icon:const Icon(Icons.school),label:Text(t('Snacks','Goûters'))),
+        FilledButton.tonalIcon(onPressed:()=>_goToTab(2),icon:const Icon(Icons.shopping_cart),label:Text(t('Shop','Achats'))),
+        FilledButton.tonalIcon(onPressed:()=>_goToTab(3),icon:const Icon(Icons.cleaning_services),label:Text(t('Care','Maison'))),
+        FilledButton.tonalIcon(onPressed:()=>_goToTab(5),icon:const Icon(Icons.school),label:Text(t('Snacks','Goûters'))),
         FilledButton.tonalIcon(onPressed:_showMealEditor,icon:const Icon(Icons.restaurant_menu),label:Text(t('Teach meal','Nouveau repas'))),
         FilledButton.tonalIcon(onPressed:_speakHomeBriefing,icon:const Icon(Icons.record_voice_over),label:Text(t('Brief me','Briefing vocal'))),
       ]),
@@ -189,6 +242,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(budget.toStringAsFixed(0)+' FCFA',style:const TextStyle(fontSize:25,fontWeight:FontWeight.w900)),const SizedBox(height:4),Text(t('Spent: ','Dépensé : ')+spent.toStringAsFixed(0)+' FCFA • '+t('Left: ','Reste : ')+remaining.toStringAsFixed(0)+' FCFA')])),IconButton(onPressed:_showBudgetEditor,icon:const Icon(Icons.edit_note),tooltip:t('Edit budget','Modifier le budget'))]),
       const SizedBox(height:8),LinearProgressIndicator(value:budget<=0?0:(spent/budget).clamp(0,1),minHeight:8,borderRadius:BorderRadius.circular(8)),
     ]),
+    const SizedBox(height:12),
+    _monthlyPlannerCard(),
 
 
     Text(t('HOME INTELLIGENCE','INTELLIGENCE MAISON'),style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),
@@ -240,9 +295,9 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       ]),
       const SizedBox(height:8),
       Row(children:[
-        Expanded(child:OutlinedButton.icon(onPressed:()=>setState(()=>tab=2),icon:const Icon(Icons.shopping_cart),label:Text(t('Buy today','Acheter')))),
+        Expanded(child:OutlinedButton.icon(onPressed:()=>_goToTab(2),icon:const Icon(Icons.shopping_cart),label:Text(t('Buy today','Acheter')))),
         const SizedBox(width:8),
-        Expanded(child:OutlinedButton.icon(onPressed:()=>setState(()=>tab=4),icon:const Icon(Icons.shield),label:Text(t('Budget & reports','Budget & rapports')))),
+        Expanded(child:OutlinedButton.icon(onPressed:()=>_goToTab(4),icon:const Icon(Icons.shield),label:Text(t('Budget & reports','Budget & rapports')))),
       ]),
     ]),
     const SizedBox(height:12),
@@ -325,7 +380,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       _line(Icons.cleaning_services,t('Open care tasks: ','Tâches maison ouvertes : ')+tasks.where((x)=>x['done']!=true).length.toString()),
       const SizedBox(height:4),
       Row(children:[
-        Expanded(child:OutlinedButton.icon(onPressed:()=>setState(()=>tab=3),icon:const Icon(Icons.cleaning_services),label:Text(t('House care','Maison')))),
+        Expanded(child:OutlinedButton.icon(onPressed:()=>_goToTab(3),icon:const Icon(Icons.cleaning_services),label:Text(t('House care','Maison')))),
         const SizedBox(width:8),
         Expanded(child:OutlinedButton.icon(onPressed:_showCopilot,icon:const Icon(Icons.mic),label:Text(t('Talk to Copilot','Parler au Copilote')))),
       ]),
@@ -588,7 +643,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
                   )),
                   const SizedBox(width:8),
                   Expanded(child:OutlinedButton.icon(
-                    onPressed:()=>setState(()=>tab=2),
+                    onPressed:()=>_goToTab(2),
                     icon:const Icon(Icons.inventory_2),
                     label:Text(t('Check stock','Voir le stock')),
                   )),
@@ -968,27 +1023,35 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ]),
     const SizedBox(height:12),
     const SizedBox(height:12),
+    _card(t('MONTHLY PURCHASE PLAN','PLAN D’ACHATS MENSUEL'),[
+      _line(Icons.people,_householdPeople.toString()+' '+t('people','personnes')+' • '+_planningDays.toString()+' '+t('days','jours')),
+      _line(Icons.shopping_cart,t('Funded basket: ','Panier financé : ')+_monthlyBasketCost.toStringAsFixed(0)+' FCFA'),
+      ...monthlyPlan.take(8).map((x)=>_line(x['budgetStatus']=='funded'?Icons.check:Icons.warning_amber,x['name'].toString()+' • '+(x['fundedQty'] as num? ?? 0).toStringAsFixed(2)+' '+x['unit'].toString()+' • '+(x['plannedCost'] as num? ?? 0).toStringAsFixed(0)+' FCFA')),
+      const SizedBox(height:6),
+      Row(children:[Expanded(child:FilledButton.icon(onPressed:_showHouseholdSetup,icon:const Icon(Icons.tune),label:Text(t('Change setup','Modifier')))),const SizedBox(width:8),Expanded(child:OutlinedButton.icon(onPressed:(){_refreshMonthlyPlan();_refreshShopping();},icon:const Icon(Icons.refresh),label:Text(t('Refresh','Actualiser'))))]),
+    ]),
+    const SizedBox(height:12),
     _card(t('Quick actions','Actions rapides'),[
       ListTile(
         leading:const Icon(Icons.restaurant_menu),
         title:Text(t('Open meal planning','Ouvrir la planification des repas')),
         subtitle:Text(t('Choose meals, teach new meals or replan the week.','Choisir des repas, ajouter des repas ou replanifier la semaine.')),
         trailing:const Icon(Icons.chevron_right),
-        onTap:()=>setState(()=>tab=1),
+        onTap:()=>_goToTab(1),
       ),
       ListTile(
         leading:const Icon(Icons.inventory_2),
         title:Text(t('Open shopping & storage','Ouvrir les achats et le stock')),
         subtitle:Text(t('Add stock, consume items, mark purchases and see low stock.','Ajouter, consommer, valider les achats et voir les stocks faibles.')),
         trailing:const Icon(Icons.chevron_right),
-        onTap:()=>setState(()=>tab=2),
+        onTap:()=>_goToTab(2),
       ),
       ListTile(
         leading:const Icon(Icons.school),
         title:Text(t('Open school snacks','Ouvrir les goûters scolaires')),
         subtitle:Text(t('Prepare and track children’s school snacks.','Préparer et suivre les goûters scolaires des enfants.')),
         trailing:const Icon(Icons.chevron_right),
-        onTap:()=>setState(()=>tab=5),
+        onTap:()=>_goToTab(5),
       ),
     ]),
     if(purchaseHistory.isNotEmpty)_card(t('Purchase history','Historique des achats'),[
@@ -1320,7 +1383,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(hasAny(['budget','argent'])){
       final days=DateTime(DateTime.now().year,DateTime.now().month+1,0).day-DateTime.now().day+1;
       final insight=HouseholdEngine.budgetInsight(budget,spent,days.toDouble());
-      setState(()=>tab=4);
+      _goToTab(4);
       await _speak(t('Budget remaining: ','Budget restant : ')+insight['remaining'].toStringAsFixed(0)+' FCFA. '+t('Daily ceiling: ','Plafond quotidien : ')+insight['dailyLimit'].toStringAsFixed(0)+' FCFA.' );
       return;
     }
@@ -1407,9 +1470,9 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       final soon=pantry.where((x){final d=DateTime.tryParse(x['useBy']?.toString()??'');return d!=null&&d.difference(DateTime.now()).inDays<=2;}).map((x)=>x['name'].toString()).toList();
       await _speak(soon.isEmpty?t('Nothing is expiring soon.','Rien n’expire bientôt.'):t('Use soon: '+soon.join(', '),'À utiliser bientôt : '+soon.join(', ')));return;
     }
-    if(hasAny(['shopping','achat'])){setState(()=>tab=2);await _speak(shopping.isEmpty?t('Shopping list is clear.','La liste d’achats est vide.'):t('Shopping list has '+shopping.length.toString()+' items.','La liste d’achats contient '+shopping.length.toString()+' articles.'));return;}
+    if(hasAny(['shopping','achat'])){_goToTab(2);await _speak(shopping.isEmpty?t('Shopping list is clear.','La liste d’achats est vide.'):t('Shopping list has '+shopping.length.toString()+' items.','La liste d’achats contient '+shopping.length.toString()+' articles.'));return;}
     if(hasAny(['plan','menu','week','semaine'])){_autoPlan();await _speak(t('The weekly menu has been replanned from your current stock and budget.','Le menu hebdomadaire a été replanifié selon le stock et le budget actuels.'));return;}
-    if(hasAny(['care','house','maison','tâche','task'])){setState(()=>tab=3);await _speak(t('I opened house care.','J’ai ouvert l’entretien de la maison.'));return;}
+    if(hasAny(['care','house','maison','tâche','task'])){_goToTab(3);await _speak(t('I opened house care.','J’ai ouvert l’entretien de la maison.'));return;}
     await _speak(t('Try: what can I cook, plan tomorrow under 3000 FCFA, use leftovers, buy 2 kg rice for 4000 FCFA, consume 500 g beans, or check gas.','Essayez : que puis-je cuisiner, planifier demain sous 3000 FCFA, utiliser les restes, acheter 2 kg de riz pour 4000 FCFA, consommer 500 g de haricots ou vérifier le gaz.'));
   }
 
@@ -1429,13 +1492,13 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(q.contains('plan')||q.contains('menu')||q.contains('week')||q.contains('semaine')){
       _autoPlan(); answer=t('The weekly menu has been planned from your meal library.','Le menu hebdomadaire a été planifié depuis votre bibliothèque de repas.');
     } else if(q.contains('low')||q.contains('stock')||q.contains('finit')||q.contains('manque')){
-      answer=lowStock==0?t('Nothing is below the minimum stock level.','Aucun article n’est sous le seuil minimum.'):lowStock.toString()+' '+t('items are low. Open Storage.','articles sont bas. Ouvrez Stock.'); setState(()=>tab=2);
+      answer=lowStock==0?t('Nothing is below the minimum stock level.','Aucun article n’est sous le seuil minimum.'):lowStock.toString()+' '+t('items are low. Open Storage.','articles sont bas. Ouvrez Stock.'); _goToTab(2);
     } else if(q.contains('shopping')||q.contains('achat')){
-      _refreshShopping(); setState(()=>tab=2); answer=t('Your live shopping list is ready.','Votre liste d’achats dynamique est prête.');
+      _refreshShopping(); _goToTab(2); answer=t('Your live shopping list is ready.','Votre liste d’achats dynamique est prête.');
     } else if(q.contains('budget')||q.contains('money')||q.contains('argent')){
-      answer=t('You have ','Il vous reste ')+remaining.toStringAsFixed(0)+' FCFA '+t('remaining.','restants.'); setState(()=>tab=4);
+      answer=t('You have ','Il vous reste ')+remaining.toStringAsFixed(0)+' FCFA '+t('remaining.','restants.'); _goToTab(4);
     } else if(q.contains('care')||q.contains('house')||q.contains('maison')||q.contains('tâche')||q.contains('task')){
-      setState(()=>tab=3); answer=t('I opened house care.','J’ai ouvert l’entretien de la maison.');
+      _goToTab(3); answer=t('I opened house care.','J’ai ouvert l’entretien de la maison.');
     } else {
       answer=t('Try: plan my week, what is low, shopping list, budget status, or house care.','Essayez : planifie ma semaine, qu’est-ce qui finit, liste d’achats, état du budget ou entretien de la maison.');
     }
@@ -1489,6 +1552,35 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     }
     return out;
   }
+  Future<void> _showHouseholdSetup() async {
+    final budgetController=TextEditingController(text:budget.toStringAsFixed(0));
+    var adults=_adults, children=_children, mealsPerDay=_mealsPerDay, days=_planningDays, snacksIncluded=_schoolSnacksIncluded;
+    await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>StatefulBuilder(builder:(sheet,setSheet){
+      final people=max(1,adults+children);
+      final available=double.tryParse(budgetController.text.replaceAll(RegExp(r'[^0-9.]'),''))??budget;
+      return Padding(padding:EdgeInsets.only(left:20,right:20,top:10,bottom:MediaQuery.of(sheet).viewInsets.bottom+20),child:SingleChildScrollView(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(t('HOUSEHOLD MONTH SETUP','CONFIGURATION DU MOIS'),style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
+        const SizedBox(height:6),Text(t('Start here: household size, meals, coverage period and food budget. Current stock will be subtracted before purchases are proposed.','Commencez ici : taille du foyer, repas, durée et budget. Le stock actuel sera déduit avant de proposer les achats.')),
+        const SizedBox(height:14),
+        Row(children:[Expanded(child:DropdownButtonFormField<int>(initialValue:adults,items:List.generate(9,(i)=>DropdownMenuItem(value:i,child:Text(i.toString()))),onChanged:(v){if(v!=null)setSheet(()=>adults=v);},decoration:InputDecoration(labelText:t('Adults','Adultes')))),const SizedBox(width:10),Expanded(child:DropdownButtonFormField<int>(initialValue:children,items:List.generate(13,(i)=>DropdownMenuItem(value:i,child:Text(i.toString()))),onChanged:(v){if(v!=null)setSheet(()=>children=v);},decoration:InputDecoration(labelText:t('Children','Enfants'))))]),
+        DropdownButtonFormField<int>(initialValue:mealsPerDay,items:[1,2,3].map((v)=>DropdownMenuItem(value:v,child:Text(v.toString()))).toList(),onChanged:(v){if(v!=null)setSheet(()=>mealsPerDay=v);},decoration:InputDecoration(labelText:t('Main meals per day','Repas principaux par jour'))),
+        DropdownButtonFormField<int>(initialValue:days,items:[7,14,30,60,90].map((v)=>DropdownMenuItem(value:v,child:Text(v.toString()+' '+t('days','jours')))).toList(),onChanged:(v){if(v!=null)setSheet(()=>days=v);},decoration:InputDecoration(labelText:t('Coverage target','Durée à couvrir'))),
+        SwitchListTile(contentPadding:EdgeInsets.zero,value:snacksIncluded,onChanged:(v)=>setSheet(()=>snacksIncluded=v),title:Text(t('Include school snacks in the guardrail','Inclure les goûters scolaires dans le garde-fou'))),
+        TextField(controller:budgetController,keyboardType:const TextInputType.numberWithOptions(decimal:false),decoration:InputDecoration(labelText:t('Food budget for this period (FCFA)','Budget nourriture pour cette période (FCFA)'),prefixIcon:const Icon(Icons.account_balance_wallet))),
+        const SizedBox(height:10),
+        Card(color:Theme.of(sheet).colorScheme.secondaryContainer,child:Padding(padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(t('LIVE PREVIEW','APERÇU EN DIRECT'),style:const TextStyle(fontWeight:FontWeight.w800)),Text(people.toString()+' '+t('people','personnes')+' • '+days.toString()+' '+t('days','jours')+' • '+mealsPerDay.toString()+' '+t('meals/day','repas/jour')),Text(t('Food budget: ','Budget nourriture : ')+available.toStringAsFixed(0)+' FCFA'),Text(t('Pantry stock is deducted before shopping.','Le stock est déduit avant les achats.'))]))),
+        const SizedBox(height:12),
+        SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:(){
+          final parsed=double.tryParse(budgetController.text.replaceAll(RegExp(r'[^0-9.]'),''));
+          if(parsed==null||parsed<=0){_feedback('Enter a valid food budget.','Entrez un budget alimentaire valide.',important:true);return;}
+          setState((){_adults=adults;_children=children;_mealsPerDay=mealsPerDay;_planningDays=days;_schoolSnacksIncluded=snacksIncluded;budget=parsed;});
+          _refreshMonthlyPlan(save:false);_autoPlan(save:false);_refreshShopping(save:false);_save();Navigator.pop(sheet);
+          _feedback('Month setup saved. Your stock-aware purchase basket is ready.','Configuration du mois enregistrée. Votre panier basé sur le stock est prêt.',important:true);
+        },icon:const Icon(Icons.auto_awesome),label:Text(t('BUILD MONTHLY FOOD BASKET','CONSTRUIRE LE PANIER MENSUEL')))),
+      ])));
+    }));
+  }
+
   Future<void> _showBudgetEditor() async {
     final controller=TextEditingController(text:budget.toStringAsFixed(0));
     var liveBudget=budget.clamp(50000.0,1000000.0);
@@ -1540,7 +1632,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
                   final value=liveBudget.roundToDouble();
                   setState(()=>budget=value);
                   budgetHistory.insert(0,{'amount':value,'date':DateTime.now().toIso8601String()});
-                  _autoPlan(save:false);_refreshShopping(save:false);_save();
+                  _refreshMonthlyPlan(save:false);_autoPlan(save:false);_refreshShopping(save:false);_save();
                   Navigator.pop(sheet);
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Budget updated. Your plan and shopping guardrails were refreshed.','Budget mis à jour. Le plan et les garde-fous d’achat ont été actualisés.'))));
                 },
