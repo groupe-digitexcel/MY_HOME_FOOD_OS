@@ -377,7 +377,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
               return Card(child:ListTile(leading:const Icon(Icons.calendar_today),title:Text(day),subtitle:Text(row['meal']?.toString()??t('Not planned','Non planifié')),trailing:SizedBox(width:150,child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
                 FilledButton(onPressed:(){Navigator.pop(sheet);_showDayMealEditor(i);},child:Text(t('Choose','Choisir'))),
                 const SizedBox(height:4),
-                OutlinedButton(onPressed:(){_smartSwapDay(i);setSheet((){});},child:Text(t('Smart swap','Échange intelligent')))
+                OutlinedButton.icon(onPressed:(){_smartSwapDay(i);setSheet((){});},icon:const Icon(Icons.auto_awesome),label:Text(t('Smart swap','Échange intelligent')))
               ]))));
             }),
             const SizedBox(height:8),
@@ -875,6 +875,25 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         if(mounted)setSheet(()=>_transcript=r.recognizedWords);
         if(r.finalResult){setSheet(()=>_listening=false);_executeVoiceCommand(r.recognizedWords);}
       },
+    );
+  }
+
+  String _weeklyMenuInsight() {
+    final rows = HouseholdEngine.mealDecisions(
+      meals: meals,
+      pantry: pantry,
+      leftovers: leftovers,
+      budgetLimit: remaining > 0 ? remaining : 0,
+    );
+    if (rows.isEmpty) {
+      return t('I need more meal options to build a smart week.', 'J’ai besoin de plus de repas pour construire une semaine intelligente.');
+    }
+    final ready = rows.where((x) => x['pantryReady'] == true).length;
+    final leftover = rows.where((x) => x['usesLeftover'] == true).length;
+    final shopping = rows.where((x) => x['source'] == 'shopping').length;
+    return t(
+      'Live menu intelligence: '+ready.toString()+' meal(s) can use pantry stock, '+leftover.toString()+' can reuse leftovers, and '+shopping.toString()+' may need shopping.',
+      'Intelligence du menu : '+ready.toString()+' repas peuvent utiliser le stock, '+leftover.toString()+' peuvent réutiliser les restes et '+shopping.toString()+' peuvent nécessiter des achats.',
     );
   }
 
