@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -107,7 +108,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(mounted)setState(()=>tab=index);
   }
 
-  Future<void> _openEditor(Future<void> Function() action) async {
+  Future<void> _openEditor(FutureOr<void> Function() action) async {
     FocusManager.instance.primaryFocus?.unfocus();
     try {
       await action();
@@ -120,6 +121,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       );
     }
   }
+
+  void _goToTab(int index) => _openTab(index);
 
   int get _householdPeople=>max(1,_adults+_children);
   double get _monthlyBasketCost=>monthlyPlan.fold<double>(0,(sum,x)=>sum+(x['plannedCost'] as num? ?? 0).toDouble());
