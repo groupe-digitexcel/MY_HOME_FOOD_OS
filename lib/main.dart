@@ -843,7 +843,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:_addCareTask,icon:const Icon(Icons.add_task),label:Text(t('Add care task','Ajouter une tâche')))),
     const SizedBox(height:12),
     Text(t('House care','Entretien de la maison'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),const SizedBox(height:10),
-    _card(t('House-care schedule','Planning entretien'),tasks.map((e)=>CheckboxListTile(value:e['done']==true,onChanged:(v){setState(()=>e['done']=v??false);_save();},title:Text(e['task'].toString()),subtitle:Text(e['frequency'].toString()+' • '+e['next'].toString()),controlAffinity:ListTileControlAffinity.leading)).toList()),
+    _card(t('House-care schedule','Planning entretien'),List.generate(tasks.length,(i){final e=tasks[i];return CheckboxListTile(value:e['done']==true,onChanged:(v)=>_toggleCareTask(i,v??false),title:Text(e['task'].toString()),subtitle:Text(e['frequency'].toString()+' • '+e['next'].toString()),controlAffinity:ListTileControlAffinity.leading); })),
     _card(t('Gas management','Gestion du gaz'),[
       LinearProgressIndicator(value:gasCapacity<=0?0:(gasLevel/gasCapacity).clamp(0,1)),
       const SizedBox(height:8),
@@ -856,6 +856,22 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       ...gasLogs.take(10).map((x)=>_line(Icons.receipt_long,x['date'].toString()+' • '+x['amount'].toString()+' FCFA'))
     ])
   ]);
+
+  void _toggleCareTask(int index,bool done) {
+    if(index<0||index>=tasks.length)return;
+    final task=tasks[index];
+    setState((){
+      task['done']=done;
+      if(done){
+        final frequency=task['frequency']?.toString()??'Daily';
+        if(frequency=='Daily') task['next']=t('Tomorrow','Demain');
+        else if(frequency=='Weekly') task['next']=t('Next week','Semaine prochaine');
+        else if(frequency=='Monthly') task['next']=t('Next month','Mois prochain');
+      }
+    });
+    _save();
+    _feedback(done?t('Task completed. The next occurrence is prepared.','Tâche terminée. La prochaine occurrence est préparée.'):t('Task reopened.','Tâche rouverte.'));
+  }
 
   void _addCareTask() {
     final task=TextEditingController(), next=TextEditingController(text:'Today');
