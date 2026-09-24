@@ -172,6 +172,19 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       ]),
     ]),
     const SizedBox(height:12),
+    _card(t('HOUSE COMMAND CENTER','CENTRE DE COMMANDE MAISON'),[
+      Text(t('Every action below changes the live household state.','Chaque action ci-dessous modifie réellement l’état de la maison.')),
+      const SizedBox(height:8),
+      Wrap(spacing:8,runSpacing:8,children:[
+        FilledButton.icon(onPressed:_cookTodayLunch,icon:const Icon(Icons.soup_kitchen),label:Text(t('Cook','Cuisiner'))),
+        FilledButton.tonalIcon(onPressed:()=>setState(()=>tab=2),icon:const Icon(Icons.shopping_cart),label:Text(t('Shop','Achats'))),
+        FilledButton.tonalIcon(onPressed:()=>setState(()=>tab=3),icon:const Icon(Icons.cleaning_services),label:Text(t('Care','Maison'))),
+        FilledButton.tonalIcon(onPressed:()=>setState(()=>tab=5),icon:const Icon(Icons.school),label:Text(t('Snacks','Goûters'))),
+        FilledButton.tonalIcon(onPressed:_showMealEditor,icon:const Icon(Icons.restaurant_menu),label:Text(t('Teach meal','Nouveau repas'))),
+        FilledButton.tonalIcon(onPressed:_speakHomeBriefing,icon:const Icon(Icons.record_voice_over),label:Text(t('Brief me','Briefing vocal'))),
+      ]),
+    ]),
+    const SizedBox(height:12),
     _card(t('MONTHLY BUDGET','BUDGET MENSUEL'),[
       Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(budget.toStringAsFixed(0)+' FCFA',style:const TextStyle(fontSize:25,fontWeight:FontWeight.w900)),const SizedBox(height:4),Text(t('Spent: ','Dépensé : ')+spent.toStringAsFixed(0)+' FCFA • '+t('Left: ','Reste : ')+remaining.toStringAsFixed(0)+' FCFA')])),IconButton(onPressed:_showBudgetEditor,icon:const Icon(Icons.edit_note),tooltip:t('Edit budget','Modifier le budget'))]),
       const SizedBox(height:8),LinearProgressIndicator(value:budget<=0?0:(spent/budget).clamp(0,1),minHeight:8,borderRadius:BorderRadius.circular(8)),
