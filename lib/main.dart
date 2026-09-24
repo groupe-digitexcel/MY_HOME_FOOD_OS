@@ -613,20 +613,35 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   void _showAddSnack(){
     final item=TextEditingController(), child=TextEditingController(text:'Child 1'), cost=TextEditingController(text:'500'), qty=TextEditingController(text:'1');
-    showDialog(context:context,builder:(dialogContext)=>AlertDialog(
+    var day=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][snacks.length%7];
+    showDialog(context:context,builder:(dialogContext)=>StatefulBuilder(builder:(context,setDialogState)=>AlertDialog(
       title:Text(t('Add school snack','Ajouter un goûter scolaire')),
-      content:Column(mainAxisSize:MainAxisSize.min,children:[
-        TextField(controller:child,decoration:InputDecoration(labelText:t('Child','Enfant'))),
-        TextField(controller:item,decoration:InputDecoration(labelText:t('Snack','Goûter'))),
-        TextField(controller:qty,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Quantity','Quantité'))),
-        TextField(controller:cost,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Cost FCFA','Coût FCFA'))),
-      ]),
-      actions:[TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
+      content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+        Text(t('This snack becomes part of the household food plan and budget.','Ce goûter devient une partie du plan alimentaire et du budget du foyer.'),style:TextStyle(color:Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(height:10),
+        TextField(controller:child,decoration:InputDecoration(labelText:t('Child','Enfant'),prefixIcon:const Icon(Icons.person))),
+        TextField(controller:item,decoration:InputDecoration(labelText:t('Snack','Goûter'),prefixIcon:const Icon(Icons.lunch_dining))),
+        DropdownButtonFormField<String>(
+          initialValue:day,
+          items:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((x)=>DropdownMenuItem(value:x,child:Text(t(x,{'Mon':'Lun','Tue':'Mar','Wed':'Mer','Thu':'Jeu','Fri':'Ven','Sat':'Sam','Sun':'Dim'}[x]!)))).toList(),
+          onChanged:(v){if(v!=null)setDialogState(()=>day=v);},
+          decoration:InputDecoration(labelText:t('School day','Jour d’école'),prefixIcon:const Icon(Icons.calendar_today)),
+        ),
+        TextField(controller:qty,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Quantity','Quantité'),prefixIcon:const Icon(Icons.numbers))),
+        TextField(controller:cost,keyboardType:TextInputType.number,decoration:InputDecoration(labelText:t('Cost FCFA','Coût FCFA'),prefixIcon:const Icon(Icons.payments))),
+      ])),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
         FilledButton(onPressed:(){
-          setState(()=>snacks.add({'child':child.text.trim().isEmpty?'Child 1':child.text.trim(),'day':['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][snacks.length%7],'item':item.text.trim(),'qty':double.tryParse(qty.text) ??1,'cost':double.tryParse(cost.text) ??0.0,'prepared':false}));
+          final snackName=item.text.trim();
+          if(snackName.isEmpty){ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Enter a snack name first.','Entrez d’abord le nom du goûter.'))));return;}
+          final q=double.tryParse(qty.text.replaceAll(' ',''))??1;
+          final c=double.tryParse(cost.text.replaceAll(' ',''))??0;
+          setState(()=>snacks.add({'child':child.text.trim().isEmpty?'Child 1':child.text.trim(),'day':day,'item':snackName,'qty':q,'cost':c,'prepared':false}));
           _save();Navigator.pop(dialogContext);
-        },child:Text(t('Add','Ajouter')))]
-    ));
+          _feedback('Snack added for $day. Budget and stock will update when it is prepared.','Goûter ajouté pour $day. Le budget et le stock seront mis à jour lors de sa préparation.');
+        },child:Text(t('Add to family plan','Ajouter au plan familial')))]
+    )));
   }
 
   void _editStock(int index){
