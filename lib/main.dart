@@ -829,6 +829,11 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       ])));
     }),
     if(shopping.isNotEmpty)_card(t('Live shopping list','Liste d’achats dynamique'),[
+      Row(children:[
+        Expanded(child:Text(t(shopping.where((x)=>x['purchased']!=true).length.toString()+' active item(s)',''+shopping.where((x)=>x['purchased']!=true).length.toString()+' article(s) actif(s)'),style:const TextStyle(fontWeight:FontWeight.w800))),
+        TextButton.icon(onPressed:_clearPurchasedShopping,icon:const Icon(Icons.archive_outlined),label:Text(t('Archive bought','Archiver les achats'))),
+      ]),
+      const SizedBox(height:4),
       for(var i=0;i<shopping.length;i++)CheckboxListTile(value:shopping[i]['purchased']==true,onChanged:(v)=>_purchaseShopping(i,v??false),title:Text(shopping[i]['name'].toString()),subtitle:Text(shopping[i]['suggestedQty'].toString()+' '+shopping[i]['unit'].toString()+' • '+shopping[i]['priority'].toString()))
     ]),
   ]);
@@ -1000,6 +1005,14 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     _save();
     setState((){});
     _feedback('Leftover used: '+item['name'].toString()+'. The next meal plan will consider what remains.','Reste utilisé : '+item['name'].toString()+'. Le prochain plan tiendra compte de ce qui reste.');
+  }
+
+  void _clearPurchasedShopping() {
+    final count=shopping.where((x)=>x['purchased']==true).length;
+    if(count==0){_feedback('No purchased items to clear.','Aucun article acheté à effacer.');return;}
+    setState(()=>shopping.removeWhere((x)=>x['purchased']==true));
+    _save();
+    _feedback(count.toString()+' purchased item(s) archived from the live list.',''+count.toString()+' article(s) acheté(s) archivé(s) de la liste active.');
   }
 
   void _purchaseShopping(int index,bool purchased){
