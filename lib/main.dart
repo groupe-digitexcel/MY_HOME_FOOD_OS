@@ -101,10 +101,26 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(openTasks>0){_goToTab(3);_feedback('I opened House Care: '+openTasks.toString()+' task(s) are waiting.','J’ai ouvert Maison : '+openTasks.toString()+' tâche(s) attendent.');return;}
     _showCopilot();
   }
-  void _goToTab(int index) {
+  void _openTab(int index) {
+    FocusManager.instance.primaryFocus?.unfocus();
     if(index<0||index>5)return;
     if(mounted)setState(()=>tab=index);
   }
+
+  Future<void> _openEditor(Future<void> Function() action) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    try {
+      await action();
+    } catch (e) {
+      if(!mounted)return;
+      _feedback(
+        'The action could not open. Please try again.',
+        'Cette action ne peut pas s’ouvrir. Veuillez réessayer.',
+        important:true,
+      );
+    }
+  }
+
   int get _householdPeople=>max(1,_adults+_children);
   double get _monthlyBasketCost=>monthlyPlan.fold<double>(0,(sum,x)=>sum+(x['plannedCost'] as num? ?? 0).toDouble());
   void _refreshMonthlyPlan({bool save=true}) {
@@ -169,10 +185,10 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     theme:ThemeData(useMaterial3:true,colorSchemeSeed:Colors.green,scaffoldBackgroundColor:const Color(0xfff7f8f4)),
     home:Scaffold(
       appBar:AppBar(title:const Text('MY HOME FOOD OS',style:TextStyle(fontWeight:FontWeight.w800)),
-        actions:[TextButton(onPressed:(){setState(()=>lang=lang=='EN'?'FR':'EN');_save();},child:Text(lang)),IconButton(onPressed:_showCopilot,icon:const Icon(Icons.auto_awesome))]),
+        actions:[TextButton(onPressed:(){setState(()=>lang=lang=='EN'?'FR':'EN');_save();},child:Text(lang)),IconButton(onPressed:()=>_openEditor(_showCopilot),icon:const Icon(Icons.auto_awesome))]),
       body:_page(),
-      floatingActionButton:FloatingActionButton.extended(onPressed:_showCopilot,icon:Icon(_listening?Icons.mic:Icons.auto_awesome),label:Text(_listening?t('Listening…','J’écoute…'):t('Talk to me','Parler'))),
-      bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:_goToTab,destinations:[
+      floatingActionButton:FloatingActionButton.extended(onPressed:()=>_openEditor(_showCopilot),icon:Icon(_listening?Icons.mic:Icons.auto_awesome),label:Text(_listening?t('Listening…','J’écoute…'):t('Talk to me','Parler'))),
+      bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:_openTab,destinations:[
         NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:t('Home','Accueil')),
         NavigationDestination(icon:Icon(Icons.restaurant_menu),label:t('Meals','Repas')),
         NavigationDestination(icon:Icon(Icons.inventory_2_outlined),label:t('Storage','Stock')),
@@ -196,7 +212,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     _line(Icons.inventory_2,t('Current stock: ','Stock actuel : ')+pantry.length.toString()+' '+t('tracked items','articles suivis')),
     const SizedBox(height:10),
     Row(children:[
-      Expanded(child:FilledButton.icon(onPressed:_showHouseholdSetup,icon:const Icon(Icons.tune),label:Text(t('Set up month','Configurer le mois')))),
+      Expanded(child:FilledButton.icon(onPressed:()=>_openEditor(_showHouseholdSetup),icon:const Icon(Icons.tune),label:Text(t('Set up month','Configurer le mois')))),
       const SizedBox(width:8),
       Expanded(child:OutlinedButton.icon(onPressed:(){_refreshMonthlyPlan();_feedback('Monthly basket recalculated from current stock.','Panier mensuel recalculé à partir du stock actuel.');},icon:const Icon(Icons.refresh),label:Text(t('Recalculate','Recalculer')))),
     ]),
@@ -220,7 +236,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       Wrap(spacing:8,runSpacing:8,children:[
         ActionChip(avatar:const Icon(Icons.restaurant,size:18),label:Text(t('What can I cook?','Que puis-je cuisiner ?')),onPressed:()=>_executeVoiceCommand(t('what can I cook','que puis-je cuisiner'))),
         ActionChip(avatar:const Icon(Icons.shopping_cart,size:18),label:Text(t('What should I buy?','Que dois-je acheter ?')),onPressed:()=>_executeVoiceCommand(t('shopping list','liste d’achats'))),
-        ActionChip(avatar:const Icon(Icons.account_balance_wallet,size:18),label:Text(t('Budget','Budget')),onPressed:_showBudgetEditor),
+        ActionChip(avatar:const Icon(Icons.account_balance_wallet,size:18),label:Text(t('Budget','Budget')),onPressed:()=>_openEditor(_showBudgetEditor)),
         ActionChip(avatar:const Icon(Icons.record_voice_over,size:18),label:Text(t('Brief me','Briefing')),onPressed:_speakHomeBriefing),
       ]),
     ]),
@@ -239,7 +255,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ]),
     const SizedBox(height:12),
     _card(t('MONTHLY BUDGET','BUDGET MENSUEL'),[
-      Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(budget.toStringAsFixed(0)+' FCFA',style:const TextStyle(fontSize:25,fontWeight:FontWeight.w900)),const SizedBox(height:4),Text(t('Spent: ','Dépensé : ')+spent.toStringAsFixed(0)+' FCFA • '+t('Left: ','Reste : ')+remaining.toStringAsFixed(0)+' FCFA')])),IconButton(onPressed:_showBudgetEditor,icon:const Icon(Icons.edit_note),tooltip:t('Edit budget','Modifier le budget'))]),
+      Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(budget.toStringAsFixed(0)+' FCFA',style:const TextStyle(fontSize:25,fontWeight:FontWeight.w900)),const SizedBox(height:4),Text(t('Spent: ','Dépensé : ')+spent.toStringAsFixed(0)+' FCFA • '+t('Left: ','Reste : ')+remaining.toStringAsFixed(0)+' FCFA')])),IconButton(onPressed:()=>_openEditor(_showBudgetEditor),icon:const Icon(Icons.edit_note),tooltip:t('Edit budget','Modifier le budget'))]),
       const SizedBox(height:8),LinearProgressIndicator(value:budget<=0?0:(spent/budget).clamp(0,1),minHeight:8,borderRadius:BorderRadius.circular(8)),
     ]),
     const SizedBox(height:12),
@@ -367,7 +383,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         )),
         const SizedBox(width:8),
         Expanded(child:OutlinedButton.icon(
-          onPressed:_showCopilot,
+          onPressed:()=>_openEditor(_showCopilot),
           icon:const Icon(Icons.swap_horiz),
           label:Text(t('Substitution','Substitution')),
         )),
@@ -382,7 +398,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       Row(children:[
         Expanded(child:OutlinedButton.icon(onPressed:()=>_goToTab(3),icon:const Icon(Icons.cleaning_services),label:Text(t('House care','Maison')))),
         const SizedBox(width:8),
-        Expanded(child:OutlinedButton.icon(onPressed:_showCopilot,icon:const Icon(Icons.mic),label:Text(t('Talk to Copilot','Parler au Copilote')))),
+        Expanded(child:OutlinedButton.icon(onPressed:()=>_openEditor(_showCopilot),icon:const Icon(Icons.mic),label:Text(t('Talk to Copilot','Parler au Copilote')))),
       ]),
     ]),
   ]);
@@ -405,13 +421,13 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   Widget _mealsPage()=>ListView(padding:const EdgeInsets.all(16),children:[
     _sectionHeader(t('Living menu','Menu vivant'),t('Your meals are editable, teachable and used by the planner.','Vos repas sont modifiables, enrichissables et utilisés par le planificateur.'),Icons.restaurant_menu),
     Row(children:[
-      Expanded(child:FilledButton.icon(onPressed:()=>_showMealEditor(),icon:const Icon(Icons.add),label:Text(t('Teach a meal','Ajouter un repas')))),
+      Expanded(child:FilledButton.icon(onPressed:()=>_openEditor(()=>_showMealEditor()),icon:const Icon(Icons.add),label:Text(t('Teach a meal','Ajouter un repas')))),
       const SizedBox(width:8),Expanded(child:OutlinedButton.icon(onPressed:_autoPlan,icon:const Icon(Icons.auto_awesome),label:Text(t('Replan','Replanifier')))),
     ]),
     const SizedBox(height:12),
     _card(t('Live weekly plan','Plan hebdomadaire dynamique'),[
       Row(children:[
-        Expanded(child:FilledButton.icon(onPressed:_showWeeklyMenuEditor,icon:const Icon(Icons.edit_calendar),label:Text(t('Edit week','Modifier la semaine')))),
+        Expanded(child:FilledButton.icon(onPressed:()=>_openEditor(_showWeeklyMenuEditor),icon:const Icon(Icons.edit_calendar),label:Text(t('Edit week','Modifier la semaine')))),
         const SizedBox(width:8),
         Expanded(child:OutlinedButton.icon(onPressed:_autoPlan,icon:const Icon(Icons.auto_awesome),label:Text(t('Auto-plan','Plan auto')))),
       ]),
@@ -425,7 +441,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
           leading:CircleAvatar(child:Text(day.substring(0,1))),
           title:Text(t(day,{'Mon':'Lun','Tue':'Mar','Wed':'Mer','Thu':'Jeu','Fri':'Ven','Sat':'Sam','Sun':'Dim'}[day]!)),
           subtitle:Text(meal+(cost>0?' • '+cost.toStringAsFixed(0)+' FCFA':'')),
-          trailing:IconButton(icon:const Icon(Icons.swap_horiz),tooltip:t('Change meal','Changer le repas'),onPressed:()=>_showDayMealEditor(i)),
+          trailing:IconButton(icon:const Icon(Icons.swap_horiz),tooltip:t('Change meal','Changer le repas'),onPressed:()=>_openEditor(()=>_showDayMealEditor(i))),
         ));
       }),
     ]),
@@ -613,7 +629,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       t('Prepare, track and budget the snacks your children take to school.','Préparez, suivez et budgétisez les goûters scolaires des enfants.'),
       Icons.school,
     ),
-    FilledButton.icon(onPressed:_showAddSnack,icon:const Icon(Icons.add),label:Text(t('Add school snack','Ajouter un goûter'))),
+    FilledButton.icon(onPressed:()=>_openEditor(_showAddSnack),icon:const Icon(Icons.add),label:Text(t('Add school snack','Ajouter un goûter'))),
     const SizedBox(height:12),
     _card(t('Weekly snack plan','Plan hebdomadaire des goûters'),[
       if(snacks.isEmpty)
@@ -815,7 +831,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   Widget _storagePage()=>ListView(padding:const EdgeInsets.all(16),children:[
     _sectionHeader(t('Smart storage','Stock intelligent'),t('Fast controls keep your pantry alive and your family decisions connected.','Des contrôles rapides gardent votre stock vivant et vos décisions familiales connectées.'),Icons.inventory_2),
     Row(children:[
-      Expanded(child:FilledButton.icon(onPressed:_showAddStock,icon:const Icon(Icons.add),label:Text(t('Add stock','Ajouter')))),
+      Expanded(child:FilledButton.icon(onPressed:()=>_openEditor(_showAddStock),icon:const Icon(Icons.add),label:Text(t('Add stock','Ajouter')))),
       const SizedBox(width:8),
       Expanded(child:OutlinedButton.icon(onPressed:_showMealEditor,icon:const Icon(Icons.restaurant_menu),label:Text(t('Teach meal','Repas')))),
     ]),
@@ -919,7 +935,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       _line(Icons.local_fire_department,(gasLevel*100).toStringAsFixed(0)+'% '+t('remaining','restant')),
       _line(Icons.payments,(gasSpent).toStringAsFixed(0)+' FCFA '+t('gas spending','dépenses gaz')),
       if(gasLevel/gasCapacity<=0.2)_line(Icons.warning,t('Gas is running low — consider a refill.','Le gaz est presque fini — prévoyez une recharge.')),
-      FilledButton.icon(onPressed:_showGasRefill,icon:const Icon(Icons.add),label:Text(t('Record gas refill','Enregistrer une recharge')))
+      FilledButton.icon(onPressed:()=>_openEditor(()=>Future<void>.sync(_showGasRefill)),icon:const Icon(Icons.add),label:Text(t('Record gas refill','Enregistrer une recharge')))
     ]),
     if(gasLogs.isNotEmpty)_card(t('Gas history','Historique du gaz'),[
       ...gasLogs.take(10).map((x)=>_line(Icons.receipt_long,x['date'].toString()+' • '+x['amount'].toString()+' FCFA'))
@@ -1000,9 +1016,9 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       Icons.insights,
     ),
     Row(children:[
-      Expanded(child:FilledButton.icon(onPressed:_showBudgetEditor,icon:const Icon(Icons.edit_note),label:Text(t('Edit budget','Modifier le budget')))),
+      Expanded(child:FilledButton.icon(onPressed:()=>_openEditor(_showBudgetEditor),icon:const Icon(Icons.edit_note),label:Text(t('Edit budget','Modifier le budget')))),
       const SizedBox(width:8),
-      Expanded(child:OutlinedButton.icon(onPressed:_showCopilot,icon:const Icon(Icons.auto_awesome),label:Text(t('Ask Copilot','Copilote')))),
+      Expanded(child:OutlinedButton.icon(onPressed:()=>_openEditor(_showCopilot),icon:const Icon(Icons.auto_awesome),label:Text(t('Ask Copilot','Copilote')))),
     ]),
     const SizedBox(height:12),
     Row(children:[
@@ -1028,7 +1044,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       _line(Icons.shopping_cart,t('Funded basket: ','Panier financé : ')+_monthlyBasketCost.toStringAsFixed(0)+' FCFA'),
       ...monthlyPlan.take(8).map((x)=>_line(x['budgetStatus']=='funded'?Icons.check:Icons.warning_amber,x['name'].toString()+' • '+(x['fundedQty'] as num? ?? 0).toStringAsFixed(2)+' '+x['unit'].toString()+' • '+(x['plannedCost'] as num? ?? 0).toStringAsFixed(0)+' FCFA')),
       const SizedBox(height:6),
-      Row(children:[Expanded(child:FilledButton.icon(onPressed:_showHouseholdSetup,icon:const Icon(Icons.tune),label:Text(t('Change setup','Modifier')))),const SizedBox(width:8),Expanded(child:OutlinedButton.icon(onPressed:(){_refreshMonthlyPlan();_refreshShopping();},icon:const Icon(Icons.refresh),label:Text(t('Refresh','Actualiser'))))]),
+      Row(children:[Expanded(child:FilledButton.icon(onPressed:()=>_openEditor(_showHouseholdSetup),icon:const Icon(Icons.tune),label:Text(t('Change setup','Modifier')))),const SizedBox(width:8),Expanded(child:OutlinedButton.icon(onPressed:(){_refreshMonthlyPlan();_refreshShopping();},icon:const Icon(Icons.refresh),label:Text(t('Refresh','Actualiser'))))]),
     ]),
     const SizedBox(height:12),
     _card(t('Quick actions','Actions rapides'),[
