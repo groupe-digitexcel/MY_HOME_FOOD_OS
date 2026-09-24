@@ -55,7 +55,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   ];
 
   @override void initState(){super.initState();_load();}
-  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),ph=p.getString('purchaseHistory'),sn=p.getString('snacks'),gl=p.getString('gasLogs'),lo=p.getString('leftovers'),bh=p.getString('budgetHistory'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(ph!=null){final x=jsonDecode(ph) as List; purchaseHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sn!=null){final x=jsonDecode(sn) as List; snacks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} gasLevel=p.getDouble('gasLevel')??1.0; gasCapacity=p.getDouble('gasCapacity')??1.0; gasSpent=p.getDouble('gasSpent')??0; if(gl!=null){final x=jsonDecode(gl) as List; gasLogs..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(bh!=null){final x=jsonDecode(bh) as List; budgetHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
+  Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),ph=p.getString('purchaseHistory'),sn=p.getString('snacks'),gl=p.getString('gasLogs'),lo=p.getString('leftovers'),bh=p.getString('budgetHistory'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(ph!=null){final x=jsonDecode(ph) as List; purchaseHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sn!=null){final x=jsonDecode(sn) as List; snacks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} gasLevel=p.getDouble('gasLevel')??1.0; gasCapacity=p.getDouble('gasCapacity')??1.0; gasSpent=p.getDouble('gasSpent')??0; _freezerCapacity=p.getDouble('freezerCapacity')??6.0; if(gl!=null){final x=jsonDecode(gl) as List; gasLogs..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(bh!=null){final x=jsonDecode(bh) as List; budgetHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
   Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('freezerCapacity',_freezerCapacity); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('purchaseHistory',jsonEncode(purchaseHistory)); await p.setString('snacks',jsonEncode(snacks)); await p.setDouble('gasLevel',gasLevel); await p.setDouble('gasCapacity',gasCapacity); await p.setDouble('gasSpent',gasSpent); await p.setString('gasLogs',jsonEncode(gasLogs)); await p.setString('leftovers',jsonEncode(leftovers)); await p.setString('budgetHistory',jsonEncode(budgetHistory)); }
   String t(String en,String fr)=>lang=='FR'?fr:en;
   double get remaining=>budget-spent;
@@ -172,7 +172,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       Row(children:[
         Expanded(child:OutlinedButton.icon(onPressed:()=>setState(()=>tab=2),icon:const Icon(Icons.shopping_cart),label:Text(t('Buy today','Acheter')))),
         const SizedBox(width:8),
-        Expanded(child:OutlinedButton.icon(onPressed:()=>setState(()=>tab=4),icon:const Icon(Icons.shield),label:Text(t('Budget guard','Garde budget')))),
+        Expanded(child:OutlinedButton.icon(onPressed:()=>setState(()=>tab=4),icon:const Icon(Icons.shield),label:Text(t('Budget & reports','Budget & rapports')))),
       ]),
     ]),
     const SizedBox(height:12),
@@ -374,11 +374,37 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
             ...List.generate(7,(i){
               final row=plan.length>i?plan[i]:<String,dynamic>{};
               final day=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i];
-              return Card(child:ListTile(leading:const Icon(Icons.calendar_today),title:Text(day),subtitle:Text(row['meal']?.toString()??t('Not planned','Non planifié')),trailing:SizedBox(width:150,child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                FilledButton(onPressed:(){Navigator.pop(sheet);_showDayMealEditor(i);},child:Text(t('Choose','Choisir'))),
-                const SizedBox(height:4),
-                OutlinedButton.icon(onPressed:(){_smartSwapDay(i);setSheet((){});},icon:const Icon(Icons.auto_awesome),label:Text(t('Smart swap','Échange intelligent')))
-              ]))));
+              final meal=row['meal']?.toString()??'';
+              return Card(
+                margin:const EdgeInsets.only(bottom:10),
+                child:Padding(
+                  padding:const EdgeInsets.all(12),
+                  child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                    Row(children:[
+                      CircleAvatar(child:Text(day.substring(0,1))),
+                      const SizedBox(width:10),
+                      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                        Text(t(day,{'Mon':'Lun','Tue':'Mar','Wed':'Mer','Thu':'Jeu','Fri':'Ven','Sat':'Sam','Sun':'Dim'}[day]!),style:const TextStyle(fontWeight:FontWeight.w800)),
+                        Text(meal.isEmpty?t('No meal selected yet','Aucun repas choisi'):meal,overflow:TextOverflow.ellipsis),
+                      ])),
+                    ]),
+                    const SizedBox(height:8),
+                    Row(children:[
+                      Expanded(child:FilledButton.icon(
+                        onPressed:(){Navigator.pop(sheet);_showDayMealEditor(i);},
+                        icon:const Icon(Icons.edit),
+                        label:Text(t('Choose meal','Choisir le repas')),
+                      )),
+                      const SizedBox(width:8),
+                      Expanded(child:OutlinedButton.icon(
+                        onPressed:(){_smartSwapDay(i);setSheet((){});},
+                        icon:const Icon(Icons.auto_awesome),
+                        label:Text(t('Smart swap','Échange intelligent')),
+                      )),
+                    ]),
+                  ]),
+                ),
+              );
             }),
             const SizedBox(height:8),
             Row(children:[
@@ -451,17 +477,51 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     );
   }
   Widget _snackPage()=>ListView(padding:const EdgeInsets.all(16),children:[
-    Text(t('School snacks','Goûters scolaires'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
-    const SizedBox(height:10),
+    _sectionHeader(
+      t('School snacks','Goûters scolaires'),
+      t('Prepare, track and budget the snacks your children take to school.','Préparez, suivez et budgétisez les goûters scolaires des enfants.'),
+      Icons.school,
+    ),
+    FilledButton.icon(onPressed:_showAddSnack,icon:const Icon(Icons.add),label:Text(t('Add school snack','Ajouter un goûter'))),
+    const SizedBox(height:12),
     _card(t('Weekly snack plan','Plan hebdomadaire des goûters'),[
-      ...snacks.map((x)=>CheckboxListTile(
-        value:x['prepared']==true,
-        onChanged:(v){if(v==true){_prepareSnack(snacks.indexOf(x));}else{setState(()=>x['prepared']=false);_save();}},
-        title:Text(x['child'].toString()+' • '+x['day'].toString()),
-        subtitle:Text(x['item'].toString()+' • '+x['qty'].toString()+' • '+x['cost'].toString()+' FCFA'),
-      ))
+      if(snacks.isEmpty)
+        Text(t('No snacks yet. Tap “Add school snack” to create the first one.','Aucun goûter. Appuyez sur « Ajouter un goûter » pour créer le premier.'))
+      else
+        ...snacks.asMap().entries.map((entry){
+          final i=entry.key; final x=entry.value; final prepared=x['prepared']==true;
+          return Card(
+            margin:const EdgeInsets.only(bottom:8),
+            child:Padding(
+              padding:const EdgeInsets.all(10),
+              child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Row(children:[
+                  Icon(prepared?Icons.check_circle:Icons.lunch_dining),
+                  const SizedBox(width:10),
+                  Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                    Text(x['child'].toString()+' • '+x['day'].toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
+                    Text(x['item'].toString()+' • '+x['qty'].toString()+' • '+x['cost'].toString()+' FCFA'),
+                  ])),
+                ]),
+                const SizedBox(height:8),
+                Row(children:[
+                  Expanded(child:FilledButton.icon(
+                    onPressed:prepared?null:()=>_prepareSnack(i),
+                    icon:Icon(prepared?Icons.check:Icons.restaurant),
+                    label:Text(prepared?t('Prepared','Préparé'):t('Prepare now','Préparer')),
+                  )),
+                  const SizedBox(width:8),
+                  Expanded(child:OutlinedButton.icon(
+                    onPressed:()=>setState(()=>tab=2),
+                    icon:const Icon(Icons.inventory_2),
+                    label:Text(t('Check stock','Voir le stock')),
+                  )),
+                ]),
+              ]),
+            ),
+          );
+        }),
     ]),
-    FilledButton.icon(onPressed:_showAddSnack,icon:const Icon(Icons.add),label:Text(t('Add school snack','Ajouter un goûter')))
   ]);
 
   List<Map<String,dynamic>> _snackIngredients(String item){
@@ -721,10 +781,48 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   }
 
   Widget _reportsPage()=>ListView(padding:const EdgeInsets.all(16),children:[
-    Text(t('Monthly report','Rapport mensuel'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),const SizedBox(height:10),
-    _metric(t('Monthly budget','Budget mensuel'),budget.toStringAsFixed(0)+' FCFA',Icons.account_balance_wallet),
-    _metric(t('Food spending','Dépenses nourriture'),spent.toStringAsFixed(0)+' FCFA',Icons.restaurant),
-    _metric(t('Remaining','Reste'),remaining.toStringAsFixed(0)+' FCFA',Icons.savings),
+    _sectionHeader(
+      t('Budget & reports','Budget & rapports'),
+      t('See what is happening, change the budget, and jump directly to the next action.','Voyez ce qui se passe, modifiez le budget et allez directement à l’action suivante.'),
+      Icons.insights,
+    ),
+    Row(children:[
+      Expanded(child:FilledButton.icon(onPressed:_showBudgetEditor,icon:const Icon(Icons.edit_note),label:Text(t('Edit budget','Modifier le budget')))),
+      const SizedBox(width:8),
+      Expanded(child:OutlinedButton.icon(onPressed:_showCopilot,icon:const Icon(Icons.auto_awesome),label:Text(t('Ask Copilot','Copilote')))),
+    ]),
+    const SizedBox(height:12),
+    Row(children:[
+      Expanded(child:_metric(t('Monthly budget','Budget mensuel'),budget.toStringAsFixed(0)+' FCFA',Icons.account_balance_wallet)),
+      const SizedBox(width:10),
+      Expanded(child:_metric(t('Spent','Dépensé'),spent.toStringAsFixed(0)+' FCFA',Icons.restaurant)),
+    ]),
+    const SizedBox(height:10),
+    _metric(t('Money available','Argent disponible'),remaining.toStringAsFixed(0)+' FCFA',Icons.savings),
+    const SizedBox(height:12),
+    _card(t('Quick actions','Actions rapides'),[
+      ListTile(
+        leading:const Icon(Icons.restaurant_menu),
+        title:Text(t('Open meal planning','Ouvrir la planification des repas')),
+        subtitle:Text(t('Choose meals, teach new meals or replan the week.','Choisir des repas, ajouter des repas ou replanifier la semaine.')),
+        trailing:const Icon(Icons.chevron_right),
+        onTap:()=>setState(()=>tab=1),
+      ),
+      ListTile(
+        leading:const Icon(Icons.inventory_2),
+        title:Text(t('Open shopping & storage','Ouvrir les achats et le stock')),
+        subtitle:Text(t('Add stock, consume items, mark purchases and see low stock.','Ajouter, consommer, valider les achats et voir les stocks faibles.')),
+        trailing:const Icon(Icons.chevron_right),
+        onTap:()=>setState(()=>tab=2),
+      ),
+      ListTile(
+        leading:const Icon(Icons.school),
+        title:Text(t('Open school snacks','Ouvrir les goûters scolaires')),
+        subtitle:Text(t('Prepare and track children’s school snacks.','Préparer et suivre les goûters scolaires des enfants.')),
+        trailing:const Icon(Icons.chevron_right),
+        onTap:()=>setState(()=>tab=5),
+      ),
+    ]),
     if(purchaseHistory.isNotEmpty)_card(t('Purchase history','Historique des achats'),[
       ...purchaseHistory.take(12).map((x)=>_line(
         Icons.receipt_long,
@@ -732,11 +830,11 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         (((x['cost'] as num?) ?? 0)>0 ? ' • '+((x['cost'] as num).toStringAsFixed(0))+' FCFA' : ''),
       )),
     ]),
-    _card(t('Household intelligence','Intelligence du foyer'),[
-      _line(Icons.trending_down,t('Reuse leftovers to reduce repeated cooking.','Réutilisez les restes pour réduire les cuissons répétées.')),
-      _line(Icons.inventory,t('Buy long-life dry goods in bulk when budget permits.','Achetez les produits secs longue conservation en gros lorsque le budget le permet.')),
-      _line(Icons.calendar_month,t('Repeat efficient meals instead of cooking something new every day.','Répétez les repas efficaces au lieu de cuisiner du nouveau chaque jour.'))
-    ])
+    _card(t('What these numbers mean','Ce que signifient ces chiffres'),[
+      _line(Icons.account_balance_wallet,t('Budget = your monthly food ceiling.','Budget = votre plafond alimentaire mensuel.')),
+      _line(Icons.restaurant,t('Spent = purchases and snack costs recorded in the app.','Dépensé = achats et coûts de goûters enregistrés dans l’application.')),
+      _line(Icons.savings,t('Available = budget minus recorded spending.','Disponible = budget moins les dépenses enregistrées.')),
+    ]),
   ]);
 
   void _useGas(double amount,String activity){
