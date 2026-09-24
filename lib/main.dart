@@ -309,6 +309,57 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ]),
   ]);
 
+  void _smartSwapDay(int dayIndex, {bool closeSheet = false}) {
+    if (dayIndex < 0 || dayIndex > 6) return;
+    final current = plan.length > dayIndex ? plan[dayIndex]['meal']?.toString() ?? '' : '';
+    final decisions = HouseholdEngine.mealDecisions(
+      meals: meals,
+      pantry: pantry,
+      leftovers: leftovers,
+      budgetLimit: remaining > 0 ? remaining : 0,
+    ).where((x) => x['name'].toString() != current).toList();
+    if (decisions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t('No better live option is available right now.', 'Aucune meilleure option en direct n’est disponible maintenant.'))),
+      );
+      return;
+    }
+    final pick = decisions.first;
+    final days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    final row = <String,dynamic>{
+      'day': days[dayIndex],
+      'meal': pick['name'],
+      'region': pick['region'],
+      'estimatedCost': pick['estimatedCost'],
+      'leftoverPlan': pick['usesLeftover'] == true
+          ? 'Use this saved leftover first.'
+          : 'Use leftovers first when available.',
+      'reason': pick['usesLeftover'] == true
+          ? 'Smart swap: prioritized a saved leftover.'
+          : pick['pantryReady'] == true
+              ? 'Smart swap: prioritized current pantry stock.'
+              : pick['withinBudget'] == true
+                  ? 'Smart swap: fits the current budget.'
+                  : 'Smart swap: selected from the live meal library.',
+    };
+    setState(() {
+      while (plan.length < 7) {
+        final j = plan.length;
+        plan.add({'day': days[j], 'meal': '', 'region': 'All', 'estimatedCost': 0.0});
+      }
+      plan[dayIndex] = row;
+    });
+    _refreshShopping(save:false);
+    _save();
+    if (closeSheet) Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(
+        t(days[dayIndex]+' smart-swapped to '+pick['name'].toString()+'.',
+          'Le repas du '+days[dayIndex]+' a été remplacé intelligemment par '+pick['name'].toString()+'.')
+      )),
+    );
+  }
+
   Future<void> _showWeeklyMenuEditor() async {
     await showModalBottomSheet<void>(
       context:context,isScrollControlled:true,showDragHandle:true,
@@ -323,7 +374,11 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
             ...List.generate(7,(i){
               final row=plan.length>i?plan[i]:<String,dynamic>{};
               final day=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i];
-              return Card(child:ListTile(leading:const Icon(Icons.calendar_today),title:Text(day),subtitle:Text(row['meal']?.toString()??t('Not planned','Non planifié')),trailing:FilledButton(onPressed:(){Navigator.pop(sheet);_showDayMealEditor(i);},child:Text(t('Choose','Choisir')))));
+              return Card(child:ListTile(leading:const Icon(Icons.calendar_today),title:Text(day),subtitle:Text(row['meal']?.toString()??t('Not planned','Non planifié')),trailing:SizedBox(width:150,child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+                FilledButton(onPressed:(){Navigator.pop(sheet);_showDayMealEditor(i);},child:Text(t('Choose','Choisir'))),
+                const SizedBox(height:4),
+                OutlinedButton(onPressed:(){_smartSwapDay(i);setSheet((){});},child:Text(t('Smart swap','Échange intelligent')))
+              ]))));
             }),
             const SizedBox(height:8),
             Row(children:[
