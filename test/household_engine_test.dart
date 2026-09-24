@@ -54,6 +54,37 @@ void main() {
       expect(HouseholdEngine.freezerPercent(-5, 100), 0);
     });
 
+    test('meal decisions prioritize pantry-ready and budget-aware choices', () {
+      final result = HouseholdEngine.mealDecisions(
+        meals: meals,
+        pantry: [
+          {'name': 'Plantain', 'qty': 8.0, 'unit': 'bunches', 'min': 2.0},
+        ],
+        leftovers: const [],
+        budgetLimit: 4000,
+      );
+      expect(result, isNotEmpty);
+      expect(result.first.containsKey('pantryReady'), true);
+      expect(result.first.containsKey('withinBudget'), true);
+      expect(result.first.containsKey('missingItems'), true);
+    });
+
+    test('three-day planner stays inside the supplied budget when possible', () {
+      final result = HouseholdEngine.planNextDays(
+        meals: meals,
+        pantry: const [],
+        leftovers: const [],
+        budgetLimit: 10500,
+        days: 3,
+      );
+      final total = result.fold<double>(
+        0,
+        (sum, row) => sum + (row['estimatedCost'] as num).toDouble(),
+      );
+      expect(result.length, greaterThan(0));
+      expect(total, lessThanOrEqualTo(10500));
+    });
+
     test('household advice combines actionable conditions', () {
       expect(
         HouseholdEngine.householdAdvice(
