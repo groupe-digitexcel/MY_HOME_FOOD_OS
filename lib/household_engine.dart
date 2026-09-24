@@ -435,6 +435,33 @@ class HouseholdEngine {
     return rows;
   }
 
+  /// Scores meals for variety without requiring an online AI service.
+  /// Recent meal names and regions are used to reduce repetition.
+  static List<Map<String, dynamic>> varietyRecommendations({
+    required List<dynamic> meals,
+    required List<Map<String, dynamic>> recentPlan,
+    int limit = 5,
+  }) {
+    final recentNames = recentPlan.map((x) => x['meal']?.toString().toLowerCase() ?? '').where((x) => x.isNotEmpty).toList();
+    final recentRegions = recentPlan.map((x) => x['region']?.toString().toLowerCase() ?? '').where((x) => x.isNotEmpty).toList();
+    final rows = <Map<String, dynamic>>[];
+    for (final raw in meals) {
+      if (raw is! List || raw.length < 3) continue;
+      final name = raw[0].toString();
+      final region = raw[1].toString();
+      final repeat = recentNames.where((x) => x == name.toLowerCase()).length;
+      final regionRepeat = recentRegions.where((x) => x == region.toLowerCase()).length;
+      final score = 100 - (repeat * 35) - (regionRepeat * 10);
+      rows.add({'name': name, 'region': region, 'cost': (raw[2] as num).toDouble(), 'varietyScore': max(0, score)});
+    }
+    rows.sort((a, b) {
+      final byScore = (b['varietyScore'] as int).compareTo(a['varietyScore'] as int);
+      if (byScore != 0) return byScore;
+      return (a['cost'] as double).compareTo(b['cost'] as double);
+    });
+    return rows.take(max(1, limit)).toList();
+  }
+
   /// Returns a short deterministic recommendation for the household dashboard.
   static String householdAdvice({
     required int lowStock,
