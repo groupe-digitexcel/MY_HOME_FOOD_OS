@@ -884,7 +884,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       }
     });
     _save();
-    _feedback(done?t('Task completed. The next occurrence is prepared.','Tâche terminée. La prochaine occurrence est préparée.'):t('Task reopened.','Tâche rouverte.'));
+    _feedback(done?'Task completed. The next occurrence is prepared.':'Task reopened.',done?'Tâche terminée. La prochaine occurrence est préparée.':'Tâche rouverte.');
   }
 
   void _addCareTask() {
