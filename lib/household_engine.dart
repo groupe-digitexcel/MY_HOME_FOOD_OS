@@ -502,7 +502,6 @@ class HouseholdEngine {
       }
     }
     final rows = <Map<String, dynamic>>[];
-    var totalEstimate = 0.0;
     for (final row in totals.values) {
       final key = row['name'].toString().trim().toLowerCase();
       final pantryItem = pantry.firstWhere(
@@ -516,7 +515,6 @@ class HouseholdEngine {
       final costs = unitCosts[key] ?? const <double>[];
       final unitCost = costs.isEmpty ? 0.0 : costs.reduce((a, b) => a + b) / costs.length;
       final estimated = purchase * unitCost;
-      totalEstimate += estimated;
       final location = pantryItem['location']?.toString() ?? 'Dry store';
       final longLife = const ['rice','beans','palm oil','cassava','yam','groundnuts'].contains(key);
       rows.add({
