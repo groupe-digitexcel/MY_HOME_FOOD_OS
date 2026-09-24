@@ -918,56 +918,67 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   }
   Future<void> _showBudgetEditor() async {
     final controller=TextEditingController(text:budget.toStringAsFixed(0));
-    var liveBudget=budget.clamp(50000,1000000);
+    var liveBudget=budget.clamp(50000.0,1000000.0);
     final daysLeft=DateTime(DateTime.now().year,DateTime.now().month+1,0).day-DateTime.now().day+1;
-    await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>StatefulBuilder(
-      builder:(sheet,setSheet){
-        final daily=(liveBudget-spent).clamp(0,double.infinity)/max(1,daysLeft);
-        final weekly=daily*7;
-        final progress=liveBudget<=0?0:(spent/liveBudget).clamp(0,1);
+    await showModalBottomSheet<void>(
+      context:context,isScrollControlled:true,showDragHandle:true,
+      builder:(sheet)=>StatefulBuilder(builder:(sheet,setSheet){
+        final daily=((liveBudget-spent).clamp(0.0,double.infinity))/max(1,daysLeft);
+        final weekly=daily*7.0;
+        final progress=liveBudget<=0.0?0.0:(spent/liveBudget).clamp(0.0,1.0);
         return Padding(
           padding:EdgeInsets.only(left:20,right:20,top:10,bottom:MediaQuery.of(sheet).viewInsets.bottom+20),
-          child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-            Row(children:[
-              Container(width:46,height:46,decoration:BoxDecoration(color:Theme.of(sheet).colorScheme.primaryContainer,borderRadius:BorderRadius.circular(14)),child:Icon(Icons.account_balance_wallet,color:Theme.of(sheet).colorScheme.onPrimaryContainer)),
-              const SizedBox(width:12),
-              Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                Text(t('Your food budget companion','Votre assistant budget alimentaire'),style:const TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
-                Text(t('Move the budget and I will recalculate your daily guardrail.','Déplacez le budget et je recalcule votre garde-fou quotidien.')),
-              ])),
+          child:SingleChildScrollView(
+            child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Row(children:[
+                Container(width:46,height:46,decoration:BoxDecoration(color:Theme.of(sheet).colorScheme.primaryContainer,borderRadius:BorderRadius.circular(14)),child:Icon(Icons.account_balance_wallet,color:Theme.of(sheet).colorScheme.onPrimaryContainer)),
+                const SizedBox(width:12),
+                Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Text(t('Your food budget companion','Votre assistant budget alimentaire'),style:const TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
+                  Text(t('Move the budget and I will recalculate your daily guardrail.','Déplacez le budget et je recalcule votre garde-fou quotidien.')),
+                ])),
+              ]),
+              const SizedBox(height:16),
+              Text(liveBudget.toStringAsFixed(0)+' FCFA',style:const TextStyle(fontSize:30,fontWeight:FontWeight.w900)),
+              const SizedBox(height:4),
+              Text(t('About ','Environ ')+daily.toStringAsFixed(0)+' FCFA '+t('per day • ','par jour • ')+weekly.toStringAsFixed(0)+' FCFA '+t('per week','par semaine')),
+              Slider(min:50000,max:1000000,divisions:190,value:liveBudget,label:liveBudget.toStringAsFixed(0)+' FCFA',onChanged:(v){setSheet((){liveBudget=v;controller.text=v.round().toString();});}),
+              TextField(controller:controller,keyboardType:const TextInputType.numberWithOptions(decimal:false),decoration:InputDecoration(labelText:t('Monthly budget (FCFA)','Budget mensuel (FCFA)'),prefixIcon:const Icon(Icons.edit)),onChanged:(v){final parsed=double.tryParse(v.replaceAll(' ',''));if(parsed!=null)setSheet(()=>liveBudget=parsed.clamp(50000.0,1000000.0));}),
+              const SizedBox(height:10),
+              Wrap(spacing:8,runSpacing:8,children:[
+                ...[100000,150000,250000,350000,500000].map((value)=>ActionChip(label:Text((value~/1000).toString()+'k'),onPressed:(){setSheet((){liveBudget=value.toDouble();controller.text=value.toString();});})),
+              ]),
+              const SizedBox(height:14),
+              Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                Row(children:[Expanded(child:Text(t('Budget health','Santé du budget'),style:const TextStyle(fontWeight:FontWeight.w800))),Text((progress*100).toStringAsFixed(0)+'%')]),
+                const SizedBox(height:8),
+                LinearProgressIndicator(value:progress,minHeight:8,borderRadius:BorderRadius.circular(8)),
+                const SizedBox(height:8),
+                Text(t('Spent ','Dépensé ')+spent.toStringAsFixed(0)+' FCFA • '+t('available ','disponible ')+(liveBudget-spent).clamp(0.0,double.infinity).toStringAsFixed(0)+' FCFA'),
+              ]))),
+              if(budgetHistory.isNotEmpty) ...[
+                const SizedBox(height:12),
+                Text(t('Recent budget changes','Derniers changements de budget'),style:const TextStyle(fontWeight:FontWeight.w800)),
+                ...budgetHistory.take(3).map((x)=>ListTile(dense:true,contentPadding:EdgeInsets.zero,leading:const Icon(Icons.history),title:Text((x['amount'] as num).toStringAsFixed(0)+' FCFA'),subtitle:Text(x['date'].toString()))),
+              ],
+              const SizedBox(height:14),
+              SizedBox(width:double.infinity,child:FilledButton.icon(
+                onPressed:(){
+                  final value=liveBudget.roundToDouble();
+                  setState(()=>budget=value);
+                  budgetHistory.insert(0,{'amount':value,'date':DateTime.now().toIso8601String()});
+                  _autoPlan(save:false);_refreshShopping(save:false);_save();
+                  Navigator.pop(sheet);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Budget updated. Your plan and shopping guardrails were refreshed.','Budget mis à jour. Le plan et les garde-fous d’achat ont été actualisés.'))));
+                },
+                icon:const Icon(Icons.auto_awesome),
+                label:Text(t('Save & refresh my home','Enregistrer et actualiser ma maison')),
+              )),
             ]),
-            const SizedBox(height:16),
-            Text(liveBudget.toStringAsFixed(0)+' FCFA',style:const TextStyle(fontSize:30,fontWeight:FontWeight.w900)),
-            const SizedBox(height:4),
-            Text(t('About ','Environ ')+daily.toStringAsFixed(0)+' FCFA '+t('per day • ','par jour • ')+weekly.toStringAsFixed(0)+' FCFA '+t('per week','par semaine')),
-            Slider(min:50000,max:1000000,divisions:190,value:liveBudget,label:liveBudget.toStringAsFixed(0)+' FCFA',onChanged:(v){setSheet((){liveBudget=v;controller.text=v.round().toString();});}),
-            TextField(controller:controller,keyboardType:const TextInputType.numberWithOptions(decimal:false),decoration:InputDecoration(labelText:t('Monthly budget (FCFA)','Budget mensuel (FCFA)'),prefixIcon:const Icon(Icons.edit)),onChanged:(v){final parsed=double.tryParse(v.replaceAll(' ',''));if(parsed!=null)setSheet(()=>liveBudget=parsed.clamp(50000,1000000));}),
-            const SizedBox(height:10),
-            Wrap(spacing:8,runSpacing:8,children:[
-              ...[100000,150000,250000,350000,500000].map((value)=>ActionChip(label:Text((value~/1000).toString()+'k'),onPressed:(){setSheet((){liveBudget=value.toDouble();controller.text=value.toString();});})),
-            ]),
-            const SizedBox(height:14),
-            Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Row(children:[Expanded(child:Text(t('Budget health','Santé du budget'),style:const TextStyle(fontWeight:FontWeight.w800))),Text((progress*100).toStringAsFixed(0)+'%')]),
-              const SizedBox(height:8),LinearProgressIndicator(value:progress,minHeight:8,borderRadius:BorderRadius.circular(8)),
-              const SizedBox(height:8),Text(t('Spent ','Dépensé ')+spent.toStringAsFixed(0)+' FCFA • '+t('available ','disponible ')+(liveBudget-spent).clamp(0,double.infinity).toStringAsFixed(0)+' FCFA'),
-            ]))),
-            if(budgetHistory.isNotEmpty) ...[
-              const SizedBox(height:12),Text(t('Recent budget changes','Derniers changements de budget'),style:const TextStyle(fontWeight:FontWeight.w800)),
-              ...budgetHistory.take(3).map((x)=>ListTile(dense:true,contentPadding:EdgeInsets.zero,leading:const Icon(Icons.history),title:Text((x['amount'] as num).toStringAsFixed(0)+' FCFA'),subtitle:Text(x['date'].toString()))),
-            ],
-            const SizedBox(height:14),
-            SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:(){
-              final value=liveBudget.roundToDouble();
-              if(value<=0)return;
-              setState(()=>budget=value);budgetHistory.insert(0,{'amount':value,'date':DateTime.now().toIso8601String()});
-              _autoPlan(save:false);_refreshShopping(save:false);_save();Navigator.pop(sheet);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Budget updated. Your plan and shopping guardrails were refreshed.','Budget mis à jour. Le plan et les garde-fous d’achat ont été actualisés.'))));
-            },icon:const Icon(Icons.auto_awesome),label:Text(t('Save & refresh my home','Enregistrer et actualiser ma maison')))),
-          ]),
+          ),
         );
-      },
-    ));
+      }),
+    );
   }
   Future<void> _showMealEditor([int? index]) async {
     final existing=index==null?null:meals[index];
