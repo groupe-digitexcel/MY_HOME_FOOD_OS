@@ -168,6 +168,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         ActionChip(avatar:const Icon(Icons.restaurant,size:18),label:Text(t('What can I cook?','Que puis-je cuisiner ?')),onPressed:()=>_executeVoiceCommand(t('what can I cook','que puis-je cuisiner'))),
         ActionChip(avatar:const Icon(Icons.shopping_cart,size:18),label:Text(t('What should I buy?','Que dois-je acheter ?')),onPressed:()=>_executeVoiceCommand(t('shopping list','liste d’achats'))),
         ActionChip(avatar:const Icon(Icons.account_balance_wallet,size:18),label:Text(t('Budget','Budget')),onPressed:_showBudgetEditor),
+        ActionChip(avatar:const Icon(Icons.record_voice_over,size:18),label:Text(t('Brief me','Briefing')),onPressed:_speakHomeBriefing),
       ]),
     ]),
     const SizedBox(height:12),
@@ -1429,6 +1430,19 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     await _speak(answer);
   }
 
+
+  Future<void> _speakHomeBriefing() async {
+    final openTasks=tasks.where((x)=>x['done']!=true).length;
+    final activeShopping=shopping.where((x)=>x['purchased']!=true).length;
+    final nextSnack=snacks.firstWhere((x)=>x['prepared']!=true,orElse:()=>{});
+    final snackText=nextSnack.isEmpty?t('No pending school snack.','Aucun goûter scolaire en attente.'):t('Next snack for '+nextSnack['child'].toString()+': '+nextSnack['item'].toString()+'.','Prochain goûter pour '+nextSnack['child'].toString()+' : '+nextSnack['item'].toString()+'.');
+    final answer=t(
+      'Home briefing: '+remaining.toStringAsFixed(0)+' FCFA remains, '+lowStock.toString()+' low-stock item(s), '+activeShopping.toString()+' shopping item(s), '+openTasks.toString()+' care task(s) open. '+snackText,
+      'Briefing maison : '+remaining.toStringAsFixed(0)+' FCFA restants, '+lowStock.toString()+' article(s) en stock bas, '+activeShopping.toString()+' article(s) à acheter, '+openTasks.toString()+' tâche(s) maison ouvertes. '+snackText,
+    );
+    if(mounted)setState(()=>_transcript=answer);
+    await _speak(answer);
+  }
 
   String _humanGreeting(){
     final hour=DateTime.now().hour;
