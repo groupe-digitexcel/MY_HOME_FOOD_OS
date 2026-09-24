@@ -824,6 +824,9 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   ]);
 
   Widget _carePage()=>ListView(padding:const EdgeInsets.all(16),children:[
+    _sectionHeader(t('House care','Entretien de la maison'),t('Keep the home schedule alive, editable and actionable.','Gardez le planning de la maison vivant, modifiable et pratique.'),Icons.cleaning_services),
+    SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:_addCareTask,icon:const Icon(Icons.add_task),label:Text(t('Add care task','Ajouter une tâche')))),
+    const SizedBox(height:12),
     Text(t('House care','Entretien de la maison'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),const SizedBox(height:10),
     _card(t('House-care schedule','Planning entretien'),tasks.map((e)=>CheckboxListTile(value:e['done']==true,onChanged:(v){setState(()=>e['done']=v??false);_save();},title:Text(e['task'].toString()),subtitle:Text(e['frequency'].toString()+' • '+e['next'].toString()),controlAffinity:ListTileControlAffinity.leading)).toList()),
     _card(t('Gas management','Gestion du gaz'),[
@@ -838,6 +841,34 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       ...gasLogs.take(10).map((x)=>_line(Icons.receipt_long,x['date'].toString()+' • '+x['amount'].toString()+' FCFA'))
     ])
   ]);
+
+  void _addCareTask() {
+    final task=TextEditingController(), next=TextEditingController(text:'Today');
+    var frequency='Daily';
+    showDialog(context:context,builder:(dialogContext)=>StatefulBuilder(builder:(context,setDialogState)=>AlertDialog(
+      title:Text(t('Add house-care task','Ajouter une tâche maison')),
+      content:Column(mainAxisSize:MainAxisSize.min,children:[
+        TextField(controller:task,decoration:InputDecoration(labelText:t('Task','Tâche'),prefixIcon:const Icon(Icons.cleaning_services))),
+        DropdownButtonFormField<String>(
+          initialValue:frequency,
+          items:['Daily','Weekly','Monthly'].map((x)=>DropdownMenuItem(value:x,child:Text(x))).toList(),
+          onChanged:(v){if(v!=null)setDialogState(()=>frequency=v);},
+          decoration:InputDecoration(labelText:t('Frequency','Fréquence')),
+        ),
+        TextField(controller:next,decoration:InputDecoration(labelText:t('Next time / day','Prochaine date / jour'))),
+      ]),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
+        FilledButton(onPressed:(){
+          final name=task.text.trim();
+          if(name.isEmpty)return;
+          setState(()=>tasks.add({'task':name,'done':false,'frequency':frequency,'next':next.text.trim().isEmpty?'Today':next.text.trim()}));
+          _save();Navigator.pop(dialogContext);
+          _feedback('House-care task added.','Tâche d’entretien ajoutée.');
+        },child:Text(t('Add task','Ajouter'))),
+      ],
+    )));
+  }
 
   void _showGasRefill(){
     final cost=TextEditingController();
