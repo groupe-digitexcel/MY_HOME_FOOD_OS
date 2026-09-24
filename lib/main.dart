@@ -24,6 +24,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   String _transcript = '';
   String lang = 'EN';
   double budget = 250000, spent = 0;
+  double _freezerCapacity = 6.0;
   final budgetHistory = <Map<String,dynamic>>[];
   double gasLevel = 1.0, gasCapacity = 1.0, gasSpent = 0;
   final gasLogs = <Map<String,dynamic>>[];
@@ -55,7 +56,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   @override void initState(){super.initState();_load();}
   Future<void> _load() async { final p=await SharedPreferences.getInstance(); setState((){budget=p.getDouble('budget')??250000;spent=p.getDouble('spent')??0;lang=p.getString('lang')??'EN';}); final a=p.getString('pantry'),b=p.getString('tasks'),m=p.getString('meals'),pl=p.getString('plan'),sh=p.getString('shopping'),ph=p.getString('purchaseHistory'),sn=p.getString('snacks'),gl=p.getString('gasLogs'),lo=p.getString('leftovers'),bh=p.getString('budgetHistory'); if(a!=null){final x=jsonDecode(a) as List; pantry..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(b!=null){final x=jsonDecode(b) as List; tasks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(m!=null){final x=jsonDecode(m) as List; meals..clear()..addAll(x.map((e)=>List<dynamic>.from(e as List)));} if(pl!=null){final x=jsonDecode(pl) as List; plan..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sh!=null){final x=jsonDecode(sh) as List; shopping..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(ph!=null){final x=jsonDecode(ph) as List; purchaseHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(sn!=null){final x=jsonDecode(sn) as List; snacks..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} gasLevel=p.getDouble('gasLevel')??1.0; gasCapacity=p.getDouble('gasCapacity')??1.0; gasSpent=p.getDouble('gasSpent')??0; if(gl!=null){final x=jsonDecode(gl) as List; gasLogs..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(lo!=null){final x=jsonDecode(lo) as List; leftovers..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(bh!=null){final x=jsonDecode(bh) as List; budgetHistory..clear()..addAll(x.map((e)=>Map<String,dynamic>.from(e)));} if(plan.isEmpty)_autoPlan(save:false); _refreshShopping(save:false); if(mounted)setState((){}); }
-  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('purchaseHistory',jsonEncode(purchaseHistory)); await p.setString('snacks',jsonEncode(snacks)); await p.setDouble('gasLevel',gasLevel); await p.setDouble('gasCapacity',gasCapacity); await p.setDouble('gasSpent',gasSpent); await p.setString('gasLogs',jsonEncode(gasLogs)); await p.setString('leftovers',jsonEncode(leftovers)); await p.setString('budgetHistory',jsonEncode(budgetHistory)); }
+  Future<void> _save() async { final p=await SharedPreferences.getInstance(); await p.setDouble('budget',budget); await p.setDouble('freezerCapacity',_freezerCapacity); await p.setDouble('spent',spent); await p.setString('lang',lang); await p.setString('meals',jsonEncode(meals)); await p.setString('pantry',jsonEncode(pantry)); await p.setString('tasks',jsonEncode(tasks)); await p.setString('plan',jsonEncode(plan)); await p.setString('shopping',jsonEncode(shopping)); await p.setString('purchaseHistory',jsonEncode(purchaseHistory)); await p.setString('snacks',jsonEncode(snacks)); await p.setDouble('gasLevel',gasLevel); await p.setDouble('gasCapacity',gasCapacity); await p.setDouble('gasSpent',gasSpent); await p.setString('gasLogs',jsonEncode(gasLogs)); await p.setString('leftovers',jsonEncode(leftovers)); await p.setString('budgetHistory',jsonEncode(budgetHistory)); }
   String t(String en,String fr)=>lang=='FR'?fr:en;
   double get remaining=>budget-spent;
   int get lowStock=>pantry.where((x)=>x['qty']<=x['min']).length;
@@ -496,37 +497,109 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('Item removed from storage.','Article retiré du stock.'))));
   }
 
+  void _quickStockDelta(int index, double delta){
+    if(index<0||index>=pantry.length)return;
+    final current=(pantry[index]['qty'] as num? ?? 0).toDouble();
+    setState(()=>pantry[index]['qty']=max(0,current+delta));
+    _refreshShopping(save:false);_save();
+  }
+
+  Future<void> _setFreezerCapacity() async {
+    final controller=TextEditingController(text:_freezerCapacity.toStringAsFixed(0));
+    await showDialog<void>(context:context,builder:(dialog)=>AlertDialog(
+      title:Text(t('Freezer capacity','Capacité du congélateur')),
+      content:TextField(controller:controller,keyboardType:TextInputType.number,decoration:InputDecoration(
+        labelText:t('Capacity in storage slots','Capacité en emplacements'),
+        helperText:t('Use one slot for a practical family batch/container.','Utilisez un emplacement par bac/récipient familial.'),
+      )),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialog),child:Text(t('Cancel','Annuler'))),
+        FilledButton(onPressed:(){
+          final value=double.tryParse(controller.text.replaceAll(' ',''))??_freezerCapacity;
+          if(value>0){setState(()=>_freezerCapacity=value);_save();}
+          Navigator.pop(dialog);
+        },child:Text(t('Save','Enregistrer')))
+      ],
+    ));
+  }
+
+  double _freezerUsage(){
+    return pantry.where((x)=>x['location']=='Freezer'&&(x['qty'] as num? ?? 0)>0).length.toDouble();
+  }
+
   Widget _storagePage()=>ListView(padding:const EdgeInsets.all(16),children:[
-    Text(t('Pantry, fridge & freezer','Garde-manger, frigo & congélateur'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
-    const SizedBox(height:10),
+    _sectionHeader(t('Smart storage','Stock intelligent'),t('Fast controls keep your pantry alive and your family decisions connected.','Des contrôles rapides gardent votre stock vivant et vos décisions familiales connectées.'),Icons.inventory_2),
+    Row(children:[
+      Expanded(child:FilledButton.icon(onPressed:_showAddStock,icon:const Icon(Icons.add),label:Text(t('Add stock','Ajouter')))),
+      const SizedBox(width:8),
+      Expanded(child:OutlinedButton.icon(onPressed:_showMealEditor,icon:const Icon(Icons.restaurant_menu),label:Text(t('Teach meal','Repas')))),
+    ]),
+    const SizedBox(height:12),
     _card(t('Storage intelligence','Intelligence du stockage'),[
       _line(Icons.inventory_2,t('Dry store: long-life goods','Garde-manger : produits longue conservation')),
       _line(Icons.kitchen,t('Fridge: short-life fresh food','Frigo : produits frais à courte durée')),
       _line(Icons.ac_unit,t('Freezer: batch-cooked and frozen food','Congélateur : plats préparés et aliments congelés')),
       _line(Icons.shopping_cart,lowStock.toString()+' '+t('items need shopping','articles nécessitent des achats')),
     ]),
-    ...pantry.map((x){
+    const SizedBox(height:12),
+    _card(t('Freezer capacity','Capacité du congélateur'),[
+      Row(children:[
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(_freezerUsage().toStringAsFixed(0)+' / '+_freezerCapacity.toStringAsFixed(0)+' '+t('slots used','emplacements utilisés'),style:const TextStyle(fontSize:18,fontWeight:FontWeight.w800)),
+          const SizedBox(height:6),
+          LinearProgressIndicator(value:_freezerCapacity<=0?0:(_freezerUsage()/_freezerCapacity).clamp(0.0,1.0),minHeight:8,borderRadius:BorderRadius.circular(8)),
+        ])),
+        IconButton(onPressed:_setFreezerCapacity,icon:const Icon(Icons.settings),tooltip:t('Set capacity','Définir la capacité')),
+      ]),
+    ]),
+    const SizedBox(height:12),
+    if(pantry.any((x){
+      final d=DateTime.tryParse(x['useBy']?.toString()??'');
+      return d!=null&&d.difference(DateTime.now()).inDays<=3;
+    }))
+      _card(t('USE SOON','À UTILISER BIENTÔT'),[
+        ...pantry.where((x){
+          final d=DateTime.tryParse(x['useBy']?.toString()??'');
+          return d!=null&&d.difference(DateTime.now()).inDays<=3;
+        }).map((x){
+          final i=pantry.indexOf(x);
+          final d=DateTime.tryParse(x['useBy']?.toString()??'');
+          final days=d==null?0:d.difference(DateTime.now()).inDays;
+          return ListTile(contentPadding:EdgeInsets.zero,leading:const Icon(Icons.priority_high),title:Text(x['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text(x['qty'].toString()+' '+x['unit'].toString()+' • '+(days<0?t('expired','expiré'):days==0?t('today','aujourd’hui'):days.toString()+' '+t('days','jours'))),trailing:FilledButton.tonal(onPressed:()=>_consumeStock(i),child:Text(t('Use','Utiliser'))));
+        }),
+      ]),
+    const SizedBox(height:8),
+    ...List.generate(pantry.length,(i){
+      final x=pantry[i];
       final useBy=x['useBy']?.toString() ?? '';
       final d=DateTime.tryParse(useBy);
       final days=d==null?999:d.difference(DateTime.now()).inDays;
-      final exp=days<=2;
-      return Card(child:ListTile(
-        leading:Icon(x['location']=='Freezer'?Icons.ac_unit:x['location']=='Fridge'?Icons.kitchen:Icons.inventory_2),
-        title:Text(x['name'].toString()),
-        subtitle:Text(x['qty'].toString()+' '+x['unit'].toString()+' • '+x['location'].toString()+' • '+(useBy.isEmpty?'No use-by':useBy)),
-        trailing:Row(mainAxisSize:MainAxisSize.min,children:[
-          IconButton(onPressed:()=>_consumeStock(pantry.indexOf(x)),icon:const Icon(Icons.remove_circle_outline)),
-          IconButton(onPressed:()=>_editStock(pantry.indexOf(x)),icon:const Icon(Icons.edit)),
-          IconButton(onPressed:()=>_deleteStock(pantry.indexOf(x)),icon:const Icon(Icons.delete_outline)),
-          exp?Chip(label:Text(days<0?t('EXPIRED','EXPIRÉ'):t('USE SOON','À UTILISER'))):x['qty']<=x['min']?const Chip(label:Text('BUY')):const Icon(Icons.check_circle,color:Colors.green),
-        ]),
-      ));
+      final urgent=days<=3;
+      final low=(x['qty'] as num? ?? 0).toDouble()<=((x['min'] as num? ?? 0).toDouble());
+      return Card(child:Padding(padding:const EdgeInsets.symmetric(vertical:6),child:Column(children:[
+        ListTile(
+          leading:Icon(x['location']=='Freezer'?Icons.ac_unit:x['location']=='Fridge'?Icons.kitchen:Icons.inventory_2),
+          title:Text(x['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),
+          subtitle:Text(x['qty'].toString()+' '+x['unit'].toString()+' • '+x['location'].toString()+' • '+(useBy.isEmpty?'No use-by':useBy)),
+          trailing:PopupMenuButton<String>(onSelected:(v){if(v=='consume')_consumeStock(i);if(v=='edit')_editStock(i);if(v=='delete')_deleteStock(i);},itemBuilder:(_)=>[
+            PopupMenuItem(value:'consume',child:Text(t('Consume','Consommer'))),
+            PopupMenuItem(value:'edit',child:Text(t('Edit','Modifier'))),
+            PopupMenuItem(value:'delete',child:Text(t('Remove','Retirer'))),
+          ]),
+        ),
+        Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Row(children:[
+          IconButton(onPressed:()=>_quickStockDelta(i,-1),icon:const Icon(Icons.remove_circle_outline),tooltip:t('Quick consume 1','Consommer 1')),
+          Expanded(child:Center(child:Text(x['qty'].toString()+' '+x['unit'].toString(),style:const TextStyle(fontWeight:FontWeight.w800)))),
+          IconButton(onPressed:()=>_quickStockDelta(i,1),icon:const Icon(Icons.add_circle_outline),tooltip:t('Quick add 1','Ajouter 1')),
+          if(urgent)Padding(padding:const EdgeInsets.only(left:6),child:Chip(label:Text(days<0?t('EXPIRED','EXPIRÉ'):t('USE SOON','À UTILISER')))),
+          if(!urgent&&low)const Padding(padding:EdgeInsets.only(left:6),child:Chip(label:Text('BUY'))),
+          if(!urgent&&!low)const Padding(padding:EdgeInsets.only(left:6),child:Icon(Icons.check_circle,color:Colors.green)),
+        ])),
+      ])));
     }),
     if(shopping.isNotEmpty)_card(t('Live shopping list','Liste d’achats dynamique'),[
       for(var i=0;i<shopping.length;i++)CheckboxListTile(value:shopping[i]['purchased']==true,onChanged:(v)=>_purchaseShopping(i,v??false),title:Text(shopping[i]['name'].toString()),subtitle:Text(shopping[i]['suggestedQty'].toString()+' '+shopping[i]['unit'].toString()+' • '+shopping[i]['priority'].toString()))
     ]),
-    FilledButton.icon(onPressed:_showAddStock,icon:const Icon(Icons.add),label:Text(t('Add stock','Ajouter stock'))),
-    const SizedBox(height:8),OutlinedButton.icon(onPressed:()=>_showMealEditor(),icon:const Icon(Icons.restaurant_menu),label:Text(t('Teach a new meal','Ajouter un repas au menu')))
   ]);
 
   Widget _carePage()=>ListView(padding:const EdgeInsets.all(16),children:[
