@@ -188,6 +188,16 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ]),
     const SizedBox(height:12),
 
+    Builder(builder:(context){
+      final variety=HouseholdEngine.varietyRecommendations(meals:meals,recentPlan:plan.take(4).toList(),limit:3);
+      return _card(t('MEAL VARIETY GUARD','GARDE-FOU VARIÉTÉ'),[
+        Text(t('I reduce repetition by checking recent meals and regions.','Je réduis les répétitions en vérifiant les repas et régions récents.')),
+        const SizedBox(height:6),
+        ...variety.map((x)=>_line(Icons.auto_awesome,x['name'].toString()+' • '+x['region'].toString()+' • '+x['varietyScore'].toString()+'/100')),
+      ]);
+    }),
+    const SizedBox(height:12),
+
     Row(children:[
       Expanded(child:_metric(t('Budget left','Budget restant'),remaining.toStringAsFixed(0)+' FCFA',Icons.account_balance_wallet)),
       const SizedBox(width:10),
