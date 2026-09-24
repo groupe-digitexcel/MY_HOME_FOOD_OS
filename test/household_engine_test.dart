@@ -69,6 +69,17 @@ void main() {
       expect(result.first.containsKey('missingItems'), true);
     });
 
+    test('meal decision exposes an actionable source', () {
+      final result = HouseholdEngine.mealDecisions(
+        meals: meals,
+        pantry: const [],
+        leftovers: const [],
+        budgetLimit: 10000,
+      );
+      expect(result, isNotEmpty);
+      expect(result.first['source'], anyOf('pantry', 'shopping', 'leftover'));
+    });
+
     test('three-day planner stays inside the supplied budget when possible', () {
       final result = HouseholdEngine.planNextDays(
         meals: meals,
