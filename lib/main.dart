@@ -281,12 +281,95 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       Expanded(child:FilledButton.icon(onPressed:()=>_showMealEditor(),icon:const Icon(Icons.add),label:Text(t('Teach a meal','Ajouter un repas')))),
       const SizedBox(width:8),Expanded(child:OutlinedButton.icon(onPressed:_autoPlan,icon:const Icon(Icons.auto_awesome),label:Text(t('Replan','Replanifier')))),
     ]),
-    const SizedBox(height:12),_card(t('Live weekly plan','Plan hebdomadaire dynamique'),plan.map((x)=>_line(Icons.restaurant,'${x['day']} — ${x['meal']} • ${x['estimatedCost']} FCFA')).toList()),
+    const SizedBox(height:12),
+    _card(t('Live weekly plan','Plan hebdomadaire dynamique'),[
+      Row(children:[
+        Expanded(child:FilledButton.icon(onPressed:_showWeeklyMenuEditor,icon:const Icon(Icons.edit_calendar),label:Text(t('Edit week','Modifier la semaine')))),
+        const SizedBox(width:8),
+        Expanded(child:OutlinedButton.icon(onPressed:_autoPlan,icon:const Icon(Icons.auto_awesome),label:Text(t('Auto-plan','Plan auto')))),
+      ]),
+      const SizedBox(height:10),
+      ...List.generate(7,(i){
+        final day=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i];
+        final row=plan.length>i?plan[i]:<String,dynamic>{};
+        final meal=row['meal']?.toString()??t('Not planned','Non planifié');
+        final cost=(row['estimatedCost'] as num? ?? 0).toDouble();
+        return Card(margin:const EdgeInsets.only(bottom:7),child:ListTile(
+          leading:CircleAvatar(child:Text(day.substring(0,1))),
+          title:Text(t(day,{'Mon':'Lun','Tue':'Mar','Wed':'Mer','Thu':'Jeu','Fri':'Ven','Sat':'Sam','Sun':'Dim'}[day]!)),
+          subtitle:Text(meal+(cost>0?' • '+cost.toStringAsFixed(0)+' FCFA':'')),
+          trailing:IconButton(icon:const Icon(Icons.swap_horiz),tooltip:t('Change meal','Changer le repas'),onPressed:()=>_showDayMealEditor(i)),
+        ));
+      }),
+    ]),
     const SizedBox(height:12),_card(t('Meal library','Bibliothèque des repas'),[
       ...List.generate(meals.length,(i){final m=meals[i];final hasRecipe=m.length>3&&m[3] is List;return Card(margin:const EdgeInsets.only(bottom:8),child:ListTile(onTap:()=>_showMealEditor(i),leading:CircleAvatar(child:Icon(hasRecipe?Icons.psychology:Icons.restaurant)),title:Text(m[0].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('${m[1]} • ${m[2]} FCFA${hasRecipe?' • '+t('learned recipe','recette apprise'):''}'),trailing:PopupMenuButton<String>(onSelected:(v){if(v=='edit')_showMealEditor(i);if(v=='delete')_deleteMeal(i);},itemBuilder:(_)=>[PopupMenuItem(value:'edit',child:Text(t('Edit','Modifier'))),PopupMenuItem(value:'delete',child:Text(t('Remove','Retirer')))])));}),
     ]),
   ]);
 
+  Future<void> _showWeeklyMenuEditor() async {
+    await showModalBottomSheet<void>(
+      context:context,isScrollControlled:true,showDragHandle:true,
+      builder:(sheet)=>StatefulBuilder(builder:(sheet,setSheet){
+        return Padding(
+          padding:EdgeInsets.only(left:16,right:16,top:8,bottom:MediaQuery.of(sheet).viewInsets.bottom+16),
+          child:SingleChildScrollView(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text(t('My living weekly menu','Mon menu hebdomadaire vivant'),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w800)),
+            const SizedBox(height:6),
+            Text(t('Every day is editable. Choose a meal, swap it, or regenerate the whole week.','Chaque jour est modifiable. Choisissez un repas, échangez-le ou régénérez toute la semaine.')),
+            const SizedBox(height:14),
+            ...List.generate(7,(i){
+              final row=plan.length>i?plan[i]:<String,dynamic>{};
+              final day=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i];
+              return Card(child:ListTile(leading:const Icon(Icons.calendar_today),title:Text(day),subtitle:Text(row['meal']?.toString()??t('Not planned','Non planifié')),trailing:FilledButton(onPressed:(){Navigator.pop(sheet);_showDayMealEditor(i);},child:Text(t('Choose','Choisir')))));
+            }),
+            const SizedBox(height:8),
+            Row(children:[
+              Expanded(child:OutlinedButton.icon(onPressed:(){_autoPlan();Navigator.pop(sheet);},icon:const Icon(Icons.auto_awesome),label:Text(t('Regenerate week','Régénérer la semaine')))),
+              const SizedBox(width:8),
+              Expanded(child:FilledButton.icon(onPressed:(){Navigator.pop(sheet);_showCopilot();},icon:const Icon(Icons.mic),label:Text(t('Ask Copilot','Demander au Copilote')))),
+            ]),
+          ])),
+        );
+      }),
+    );
+  }
+
+  Future<void> _showDayMealEditor(int dayIndex) async {
+    if(dayIndex<0||dayIndex>6)return;
+    final dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    final current=plan.length>dayIndex?plan[dayIndex]['meal']?.toString():'';
+    String selected=current??'';
+    await showModalBottomSheet<void>(
+      context:context,isScrollControlled:true,showDragHandle:true,
+      builder:(sheet)=>StatefulBuilder(builder:(sheet,setSheet){
+        return Padding(
+          padding:EdgeInsets.only(left:16,right:16,top:12,bottom:MediaQuery.of(sheet).viewInsets.bottom+18),
+          child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text(t('Choose '+dayNames[dayIndex]+' meal','Choisir le repas du '+dayNames[dayIndex]),style:const TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
+            const SizedBox(height:12),
+            DropdownButtonFormField<String>(
+              initialValue:meals.any((m)=>m.isNotEmpty&&m[0].toString()==selected)?selected:null,
+              items:meals.where((m)=>m.isNotEmpty).map((m)=>DropdownMenuItem<String>(value:m[0].toString(),child:Text(m[0].toString()))).toList(),
+              onChanged:(v){if(v!=null)setSheet(()=>selected=v);},
+              decoration:InputDecoration(labelText:t('Meal','Repas')),
+            ),
+            const SizedBox(height:8),
+            if(selected.isNotEmpty) Builder(builder:(context){final m=meals.firstWhere((x)=>x[0].toString()==selected,orElse:()=>[selected,'All',0]);return Text(t('Estimated cost: ','Coût estimé : ')+(m[2] as num).toStringAsFixed(0)+' FCFA');}),
+            const SizedBox(height:14),
+            SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:(){
+              if(selected.isEmpty)return;
+              final m=meals.firstWhere((x)=>x[0].toString()==selected);
+              final row=<String,dynamic>{'day':dayNames[dayIndex],'meal':m[0].toString(),'region':m.length>1?m[1].toString():'All','estimatedCost':(m[2] as num).toDouble(),'leftoverPlan':'Use leftovers first when available.','reason':'Manually selected by household.'};
+              setState((){while(plan.length<7){final j=plan.length;plan.add({'day':dayNames[j],'meal':'','region':'All','estimatedCost':0.0});}plan[dayIndex]=row;});
+              _refreshShopping(save:false);_save();Navigator.pop(sheet);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t(dayNames[dayIndex]+' updated. Shopping and household intelligence refreshed.','Repas du '+dayNames[dayIndex]+' mis à jour. Les achats et l’intelligence maison ont été actualisés.'))));
+            },icon:const Icon(Icons.check),label:Text(t('Save this day','Enregistrer ce jour')))),
+          ]),
+        );
+      }),
+    );
+  }
   Widget _snackPage()=>ListView(padding:const EdgeInsets.all(16),children:[
     Text(t('School snacks','Goûters scolaires'),style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
     const SizedBox(height:10),
