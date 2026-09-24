@@ -968,7 +968,5 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ]));
   }
 
-  Future<void> _showAddMeal() async { await _showMealEditor(); }
-
   @override void dispose(){_speech.stop();_tts.stop();super.dispose();}
 }
