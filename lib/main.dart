@@ -774,6 +774,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
           ActionChip(label:Text(t('What is low?','Qu’est-ce qui finit ?')),onPressed:()=>_runVoiceCommand(t('what is low','qu’est-ce qui finit'))),
           ActionChip(label:Text(t('Shopping list','Liste d’achats')),onPressed:()=>_runVoiceCommand(t('shopping list','liste d’achats'))),
           ActionChip(label:Text(t('Budget status','État du budget')),onPressed:()=>_runVoiceCommand(t('budget status','état du budget'))),
+          ActionChip(label:Text(t('What should I do now?','Que dois-je faire maintenant ?')),onPressed:()=>_runVoiceCommand(t('what should I do now','que dois-je faire maintenant'))),
         ])
       ])),
     )));
@@ -796,6 +797,22 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         if(r.finalResult){setSheet(()=>_listening=false);_executeVoiceCommand(r.recognizedWords);}
       },
     );
+  }
+
+  String _nextBestAction(){
+    if(remaining<0)return t('Pause new food spending and use pantry stock first.','Mettez les nouveaux achats en pause et utilisez d’abord le stock disponible.');
+    final urgent=pantry.where((x){
+      final d=DateTime.tryParse(x['useBy']?.toString()??'');
+      return d!=null&&d.difference(DateTime.now()).inDays<=2&&(x['qty'] as num? ?? 0)>0;
+    }).toList();
+    if(urgent.isNotEmpty)return t('Use '+urgent.first['name'].toString()+' soon to reduce waste.','Utilisez bientôt '+urgent.first['name'].toString()+' pour réduire le gaspillage.');
+    if(leftovers.isNotEmpty)return t('Use the saved leftover first: '+leftovers.first['name'].toString()+'.','Utilisez d’abord le reste enregistré : '+leftovers.first['name'].toString()+'.');
+    if(lowStock>0)return t('Check shopping: '+lowStock.toString()+' item(s) are at or below minimum stock.','Vérifiez les achats : '+lowStock.toString()+' article(s) sont au seuil minimum ou en dessous.');
+    final snackIndex=snacks.indexWhere((x)=>x['prepared']!=true);
+    if(snackIndex>=0)return t('Prepare the next school snack for '+snacks[snackIndex]['child'].toString()+'.','Préparez le prochain goûter scolaire pour '+snacks[snackIndex]['child'].toString()+'.');
+    final openTasks=tasks.where((x)=>x['done']!=true).length;
+    if(openTasks>0)return t('There are '+openTasks.toString()+' open house-care task(s).','Il reste '+openTasks.toString()+' tâche(s) d’entretien ouvertes.');
+    return t('Your home is balanced. Ask me to plan, cook, shop or organize.','Votre maison est équilibrée. Demandez-moi de planifier, cuisiner, acheter ou organiser.');
   }
 
   Future<void> _executeVoiceCommand(String command) async {
@@ -906,6 +923,13 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         ? t('No configured substitute is available for '+canonical+'.','Aucun substitut configuré pour '+canonical+'.')
         : t('Configured planning substitutes for '+canonical+': '+options.join(', ')+'.',
             'Substituts de planification configurés pour '+canonical+' : '+options.join(', ')+'.'));
+      return;
+    }
+
+    if(hasAny(['what should i do now','what do i do now','next action','que dois-je faire','que faire maintenant','quoi faire maintenant'])){
+      final answer=_nextBestAction();
+      if(mounted)setState(()=>_transcript=answer);
+      await _speak(answer);
       return;
     }
 
