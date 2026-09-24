@@ -912,6 +912,16 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ]),
     const SizedBox(height:10),
     _metric(t('Money available','Argent disponible'),remaining.toStringAsFixed(0)+' FCFA',Icons.savings),
+    _card(t('HOUSEHOLD ANALYTICS','ANALYTIQUE DU FOYER'),[
+      _line(Icons.shopping_cart,t('Recorded purchases: ','Achats enregistrés : ')+purchaseHistory.length.toString()),
+      _line(Icons.replay,t('Saved leftovers: ','Restes sauvegardés : ')+leftovers.length.toString()),
+      _line(Icons.inventory_2,t('Low-stock items: ','Articles en stock bas : ')+lowStock.toString()),
+      _line(Icons.local_fire_department,t('Gas used: ','Gaz consommé : ')+(gasSpent>0?gasSpent.toStringAsFixed(0)+' FCFA':t('tracked by usage','suivi par utilisation'))),
+      _line(Icons.school,t('Unprepared snacks: ','Goûters non préparés : ')+snacks.where((x)=>x['prepared']!=true).length.toString()),
+      const SizedBox(height:4),
+      Text(t('These indicators help the household decide what to use, buy and prepare next.','Ces indicateurs aident le foyer à décider quoi utiliser, acheter et préparer ensuite.'),style:TextStyle(color:Theme.of(context).colorScheme.onSurfaceVariant)),
+    ]),
+    const SizedBox(height:12),
     const SizedBox(height:12),
     _card(t('Quick actions','Actions rapides'),[
       ListTile(
