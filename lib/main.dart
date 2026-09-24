@@ -743,6 +743,21 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         IconButton(onPressed:_setFreezerCapacity,icon:const Icon(Icons.settings),tooltip:t('Set capacity','Définir la capacité')),
       ]),
     ]),
+    if(leftovers.isNotEmpty)
+      _card(t('LEFTOVER INTELLIGENCE','INTELLIGENCE DES RESTES'),[
+        Text(t('Saved food is a resource. Use it before buying or cooking something new.','Les restes sont une ressource. Utilisez-les avant d’acheter ou de cuisiner du nouveau.'),style:TextStyle(color:Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(height:8),
+        ...leftovers.asMap().entries.map((entry)=>ListTile(
+          contentPadding:EdgeInsets.zero,
+          leading:const Icon(Icons.replay),
+          title:Text(entry.value['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),
+          subtitle:Text((entry.value['portions']??1).toString()+' '+t('portion(s)','portion(s)')),
+          trailing:FilledButton(
+            onPressed:()=>_useLeftover(entry.key),
+            child:Text(t('Use','Utiliser')),
+          ),
+        )),
+      ]),
     const SizedBox(height:12),
     if(pantry.any((x){
       final d=DateTime.tryParse(x['useBy']?.toString()??'');
@@ -913,6 +928,14 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(t('No ingredient mapping is defined for this meal yet.','Les ingrédients de ce repas ne sont pas encore définis.'))));
     }
   }
+  void _useLeftover(int index) {
+    if(index<0||index>=leftovers.length)return;
+    final item=leftovers.removeAt(index);
+    _save();
+    setState((){});
+    _feedback('Leftover used: '+item['name'].toString()+'. The next meal plan will consider what remains.','Reste utilisé : '+item['name'].toString()+'. Le prochain plan tiendra compte de ce qui reste.');
+  }
+
   void _purchaseShopping(int index,bool purchased){
     if(index<0||index>=shopping.length)return;
     final item=shopping[index];
