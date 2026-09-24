@@ -155,6 +155,12 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   Widget _homePage()=>ListView(padding:const EdgeInsets.all(16),children:[
     _hero(),
     const SizedBox(height:12),
+    _card(t('NEXT BEST ACTION','PROCHAINE MEILLEURE ACTION'),[
+      Text(_nextBestAction(),style:const TextStyle(fontSize:16,fontWeight:FontWeight.w600)),
+      const SizedBox(height:8),
+      SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:_performNextBestAction,icon:const Icon(Icons.play_arrow),label:Text(t('Do it now','Faire maintenant')))),
+    ]),
+    const SizedBox(height:12),
     _card(t('HOME COPILOT','COPILOTE MAISON'),[
       Text(_humanGreeting(),style:const TextStyle(fontSize:16,fontWeight:FontWeight.w600)),
       const SizedBox(height:10),
