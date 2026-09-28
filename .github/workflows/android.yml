@@ -32,7 +32,6 @@ jobs:
           permission = '    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n'
           if "android.permission.RECORD_AUDIO" not in s:
               s = s.replace('<application', permission + '    <application', 1)
-          # Android 11+ package visibility for speech recognition and text-to-speech.
           intents = (
               '        <intent>\n            <action android:name="android.speech.RecognitionService"/>\n        </intent>\n'
               '        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE"/>\n        </intent>\n'
@@ -57,3 +56,6 @@ jobs:
           name: my-home-food-os-android
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+
+      # Build requested for direct Android testing.
+      # The APK is retained as a GitHub Actions artifact.
