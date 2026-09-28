@@ -44,6 +44,16 @@ jobs:
           permission = '    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n'
           if "android.permission.RECORD_AUDIO" not in s:
               s = s.replace('<application', permission + '    <application', 1)
+          # Android 11+ package visibility for speech recognition and text-to-speech.
+          intents = (
+              '        <intent>\n            <action android:name="android.speech.RecognitionService"/>\n        </intent>\n'
+              '        <intent>\n            <action android:name="android.intent.action.TTS_SERVICE"/>\n        </intent>\n'
+          )
+          if "android.speech.RecognitionService" not in s:
+              if "<queries>" in s:
+                  s = s.replace("<queries>\n", "<queries>\n" + intents, 1)
+              else:
+                  s = s.replace('<application', '    <queries>\n' + intents + '    </queries>\n    <application', 1)
           p.write_text(s)
           PY
 
