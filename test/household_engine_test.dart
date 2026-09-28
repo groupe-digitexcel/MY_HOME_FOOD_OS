@@ -96,6 +96,19 @@ void main() {
       expect(total, lessThanOrEqualTo(10500));
     });
 
+    test('monthly coverage exposes shortfall and covered days', () {
+      final result = HouseholdEngine.monthlyCoverage(
+        budget: 100000,
+        spent: 10000,
+        estimatedBasketCost: 180000,
+        targetDays: 30,
+      );
+      expect(result['availableBudget'], 90000);
+      expect(result['shortfall'], 90000);
+      expect(result['coveredDays'], 15);
+      expect(result['coveragePercent'], 50);
+    });
+
     test('household advice combines actionable conditions', () {
       expect(
         HouseholdEngine.householdAdvice(
