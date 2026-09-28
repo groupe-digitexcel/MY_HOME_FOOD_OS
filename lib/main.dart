@@ -1119,6 +1119,21 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ));
   }
 
+  Map<String,double> _purchaseCategoryTotals(){
+    final totals=<String,double>{};
+    for(final purchase in purchaseHistory){
+      final name=purchase['name']?.toString().trim().toLowerCase()??'';
+      final match=pantry.cast<Map<String,dynamic>>().firstWhere(
+        (x)=>x['name'].toString().trim().toLowerCase()==name,
+        orElse:()=> <String,dynamic>{},
+      );
+      final category=match['category']?.toString()??'Other';
+      final cost=(purchase['cost'] as num? ?? 0).toDouble();
+      totals[category]=(totals[category]??0)+cost;
+    }
+    return totals;
+  }
+
   Widget _reportsPage()=>ListView(padding:const EdgeInsets.all(16),children:[
     _sectionHeader(
       t('Budget & reports','Budget & rapports'),
@@ -1144,6 +1159,11 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       _line(Icons.inventory_2,t('Low-stock items: ','Articles en stock bas : ')+lowStock.toString()),
       _line(Icons.local_fire_department,t('Gas used: ','Gaz consommé : ')+(gasSpent>0?gasSpent.toStringAsFixed(0)+' FCFA':t('tracked by usage','suivi par utilisation'))),
       _line(Icons.school,t('Unprepared snacks: ','Goûters non préparés : ')+snacks.where((x)=>x['prepared']!=true).length.toString()),
+      if(_purchaseCategoryTotals().isNotEmpty)...[
+        const SizedBox(height:6),
+        Text(t('PURCHASE SPEND BY CATEGORY','DÉPENSES D’ACHATS PAR CATÉGORIE'),style:const TextStyle(fontWeight:FontWeight.w800)),
+        ...(_purchaseCategoryTotals().entries.toList()..sort((a,b)=>b.value.compareTo(a.value))).take(6).map((e)=>_line(Icons.pie_chart_outline,e.key+' • '+e.value.toStringAsFixed(0)+' FCFA')),
+      ],
       const SizedBox(height:4),
       Text(t('These indicators help the household decide what to use, buy and prepare next.','Ces indicateurs aident le foyer à décider quoi utiliser, acheter et préparer ensuite.'),style:TextStyle(color:Theme.of(context).colorScheme.onSurfaceVariant)),
     ]),
