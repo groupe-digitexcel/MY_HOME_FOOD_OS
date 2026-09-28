@@ -1226,21 +1226,6 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     _feedback('Leftover used: '+item['name'].toString()+'. The next meal plan will consider what remains.','Reste utilisé : '+item['name'].toString()+'. Le prochain plan tiendra compte de ce qui reste.');
   }
 
-  void _clearPurchasedShopping() {
-    final count=shopping.where((x)=>x['purchased']==true).length;
-    if(count==0){_feedback('No purchased items to clear.','Aucun article acheté à effacer.');return;}
-    setState(()=>shopping.removeWhere((x)=>x['purchased']==true));
-    _save();
-    _feedback(count.toString()+' purchased item(s) archived from the live list.',''+count.toString()+' article(s) acheté(s) archivé(s) de la liste active.');
-  }
-
-  void _purchaseShopping(int index,bool purchased){
-    if(index<0||index>=shopping.length)return;
-    if(purchased){_recordShoppingPurchase(index);return;}
-    setState(()=>shopping[index]['purchased']=false);
-    _save();
-  }
-
   void _addExpense(double amount){setState(()=>spent+=amount);_save();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(amount.toStringAsFixed(0)+' FCFA '+t('added to food spending','ajoutés aux dépenses nourriture'))));}
   void _recordPurchase(String name,double qty,String unit,double? cost){
     purchaseHistory.insert(0,{'name':name,'qty':qty,'unit':unit,'cost':cost??0.0,'date':DateTime.now().toIso8601String()});
