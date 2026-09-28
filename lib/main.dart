@@ -10,12 +10,22 @@ import 'household_engine.dart';
 
 void main() => runApp(const HomeFoodApp());
 
-class HomeFoodApp extends StatefulWidget {
+class HomeFoodApp extends StatelessWidget {
   const HomeFoodApp({super.key});
-  @override State<HomeFoodApp> createState() => _HomeFoodAppState();
+  @override Widget build(BuildContext context)=>MaterialApp(
+    debugShowCheckedModeBanner:false,
+    title:'MY HOME FOOD OS',
+    theme:ThemeData(useMaterial3:true,colorSchemeSeed:Colors.green,scaffoldBackgroundColor:const Color(0xfff7f8f4)),
+    home:const HomeFoodShell(),
+  );
 }
 
-class _HomeFoodAppState extends State<HomeFoodApp> {
+class HomeFoodShell extends StatefulWidget {
+  const HomeFoodShell({super.key});
+  @override State<HomeFoodShell> createState() => _HomeFoodShellState();
+}
+
+class _HomeFoodShellState extends State<HomeFoodShell> {
   int tab = 0;
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
@@ -304,12 +314,13 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   void _autoPlan({bool save=true}){final next=HouseholdEngine.generateWeek(meals:meals,pantry:pantry,budgetRemaining:remaining);setState((){plan..clear()..addAll(next);});_refreshShopping(save:false);if(save)_save();}
 
-  @override Widget build(BuildContext context)=>MaterialApp(debugShowCheckedModeBanner:false,title:'MY HOME FOOD OS',
-    theme:ThemeData(useMaterial3:true,colorSchemeSeed:Colors.green,scaffoldBackgroundColor:const Color(0xfff7f8f4)),
-    home:Scaffold(
+  @override Widget build(BuildContext context)=>Scaffold(
       appBar:AppBar(title:const Text('MY HOME FOOD OS',style:TextStyle(fontWeight:FontWeight.w800)),
         actions:[TextButton(onPressed:(){setState(()=>lang=lang=='EN'?'FR':'EN');_save();},child:Text(lang)),IconButton(onPressed:()=>_openEditor(_showCopilot),icon:const Icon(Icons.auto_awesome))]),
-      body:_page(),
+      body:Padding(
+        padding:const EdgeInsets.only(bottom:88),
+        child:_page(),
+      ),
       floatingActionButton:FloatingActionButton.extended(onPressed:()=>_openEditor(_showCopilot),icon:Icon(_listening?Icons.mic:Icons.auto_awesome),label:Text(_listening?t('Listening…','J’écoute…'):t('Talk to me','Parler'))),
       bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:_openTab,destinations:[
         NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:t('Home','Accueil')),
@@ -820,7 +831,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(snack['prepared']==true)return;
     final recipe=_snackIngredients(snack['item'].toString());
     if(recipe.isNotEmpty){
-      setState(()=>pantry..clear()..addAll(HouseholdEngine.consumeRecipe(pantry,recipe)));
+      final updated=HouseholdEngine.consumeRecipe(pantry,recipe);
+      setState(()=>pantry..clear()..addAll(updated));
     }
     final cost=(snack['cost'] as num? ?? 0).toDouble();
     if(cost>0)_addExpense(cost);
@@ -876,9 +888,19 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       actions:[
         TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
         FilledButton(onPressed:(){
-          final amount=double.tryParse(q.text) ??0;
-          setState(()=>pantry[index]['qty']=max(0,(pantry[index]['qty'] as num? ?? 0).toDouble()-amount));
-          _refreshShopping(save:false);_save();Navigator.pop(dialogContext);
+          final amount=double.tryParse(q.text.replaceAll(',','.')) ??0;
+          final available=(pantry[index]['qty'] as num? ?? 0).toDouble();
+          if(amount<=0){
+            _feedback('Enter a quantity greater than zero.','Entrez une quantité supérieure à zéro.',important:true);
+            return;
+          }
+          if(amount>available){
+            _feedback('You only have '+available.toStringAsFixed(2)+' '+pantry[index]['unit'].toString()+' available.','Vous n’avez que '+available.toStringAsFixed(2)+' '+pantry[index]['unit'].toString()+' disponible(s).',important:true);
+            return;
+          }
+          setState(()=>pantry[index]['qty']=available-amount);
+          _refreshMonthlyPlan(save:false);_refreshShopping(save:false);_save();Navigator.pop(dialogContext);
+          _feedback('Stock consumed and shopping recalculated.','Stock consommé et achats recalculés.');
         },child:Text(t('Consume','Consommer')))
       ],
     ));
@@ -1108,12 +1130,26 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
       actions:[
         TextButton(onPressed:()=>Navigator.pop(dialogContext),child:Text(t('Cancel','Annuler'))),
         FilledButton(onPressed:(){
-          final amount=(double.tryParse(fill.text) ??0).clamp(0,1);
-          final price=double.tryParse(cost.text) ??0;
-          setState(()=>gasLevel=(gasLevel+amount).clamp(0,gasCapacity));
+          final amount=double.tryParse(fill.text.replaceAll(',','.')) ??0;
+          final price=double.tryParse(cost.text.replaceAll(',','.')) ??0;
+          if(amount<=0||amount>1){
+            _feedback('Refill amount must be between 0 and 1 cylinder.','La quantité de recharge doit être comprise entre 0 et 1 bouteille.',important:true);
+            return;
+          }
+          if(price<0){
+            _feedback('Enter a valid gas cost.','Entrez un coût de gaz valide.',important:true);
+            return;
+          }
+          final availableCapacity=max(0.0,gasCapacity-gasLevel);
+          if(amount>availableCapacity+0.0001){
+            _feedback('Only '+availableCapacity.toStringAsFixed(2)+' cylinder capacity remains.','Il reste seulement '+availableCapacity.toStringAsFixed(2)+' de capacité.',important:true);
+            return;
+          }
+          setState(()=>gasLevel+=amount);
           if(price>0){gasSpent+=price;_addExpense(price);}
           gasLogs.insert(0,{'date':DateTime.now().toIso8601String(),'amount':price,'fill':amount});
           _save();Navigator.pop(dialogContext);
+          _feedback('Gas refill recorded.','Recharge de gaz enregistrée.');
         },child:Text(t('Save','Enregistrer')))
       ],
     ));
@@ -1318,8 +1354,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     );
   }
 
-  void _showCopilot() async {
-    await _initSpeech();
+  void _showCopilot() {
     if(!mounted)return;
     _transcript='';
     final input=TextEditingController();
@@ -1354,7 +1389,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     if(!_speechReady)return;
     setSheet(()=>_listening=true);
     await _speech.listen(
-      listenOptions:stt.SpeechListenOptions(listenFor:const Duration(seconds:12),pauseFor:const Duration(seconds:3),partialResults:true,onDevice:true,localeId:lang=='FR'?'fr_FR':'en_US'),
+      listenOptions:stt.SpeechListenOptions(listenFor:const Duration(seconds:12),pauseFor:const Duration(seconds:3),partialResults:true,localeId:lang=='FR'?'fr_FR':'en_US'),
       onResult:(SpeechRecognitionResult r){
         input.text=r.recognizedWords;
         if(mounted)setSheet(()=>_transcript=r.recognizedWords);
@@ -1723,7 +1758,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   Future<void> _showBudgetEditor() async {
     final controller=TextEditingController(text:budget.toStringAsFixed(0));
-    var liveBudget=budget.clamp(50000.0,1000000.0);
+    var liveBudget=budget>0?budget:10000.0;
     final daysLeft=DateTime(DateTime.now().year,DateTime.now().month+1,0).day-DateTime.now().day+1;
     await showModalBottomSheet<void>(
       context:context,isScrollControlled:true,showDragHandle:true,
@@ -1747,8 +1782,8 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
               Text(liveBudget.toStringAsFixed(0)+' FCFA',style:const TextStyle(fontSize:30,fontWeight:FontWeight.w900)),
               const SizedBox(height:4),
               Text(t('About ','Environ ')+daily.toStringAsFixed(0)+' FCFA '+t('per day • ','par jour • ')+weekly.toStringAsFixed(0)+' FCFA '+t('per week','par semaine')),
-              Slider(min:50000,max:1000000,divisions:190,value:liveBudget,label:liveBudget.toStringAsFixed(0)+' FCFA',onChanged:(v){setSheet((){liveBudget=v;controller.text=v.round().toString();});}),
-              TextField(controller:controller,keyboardType:const TextInputType.numberWithOptions(decimal:false),decoration:InputDecoration(labelText:t('Monthly budget (FCFA)','Budget mensuel (FCFA)'),prefixIcon:const Icon(Icons.edit)),onChanged:(v){final parsed=double.tryParse(v.replaceAll(' ',''));if(parsed!=null)setSheet(()=>liveBudget=parsed.clamp(50000.0,1000000.0));}),
+              Slider(min:10000,max:1000000,divisions:198,value:liveBudget.clamp(10000.0,1000000.0).toDouble(),label:liveBudget.toStringAsFixed(0)+' FCFA',onChanged:(v){setSheet((){liveBudget=v;controller.text=v.round().toString();});}),
+              TextField(controller:controller,keyboardType:const TextInputType.numberWithOptions(decimal:false),decoration:InputDecoration(labelText:t('Monthly budget (FCFA)','Budget mensuel (FCFA)'),prefixIcon:const Icon(Icons.edit)),onChanged:(v){final parsed=double.tryParse(v.replaceAll(' ',''));if(parsed!=null)setSheet(()=>liveBudget=parsed);}),
               const SizedBox(height:10),
               Wrap(spacing:8,runSpacing:8,children:[
                 ...[100000,150000,250000,350000,500000].map((value)=>ActionChip(label:Text((value~/1000).toString()+'k'),onPressed:(){setSheet((){liveBudget=value.toDouble();controller.text=value.toString();});})),
