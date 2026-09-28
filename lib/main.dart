@@ -150,6 +150,13 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   int get _householdPeople=>max(1,_adults+_children);
   double get _monthlyBasketCost=>monthlyPlan.fold<double>(0,(sum,x)=>sum+(x['plannedCost'] as num? ?? 0).toDouble());
+  double get _monthlyRequiredCost=>monthlyPlan.fold<double>(0,(sum,x)=>sum+(x['estimatedCost'] as num? ?? 0).toDouble());
+  double get _monthlyShortfall=>max(0.0,_monthlyRequiredCost-remaining);
+  double get _monthlyCoverageDays{
+    if(_planningDays<=0||_monthlyRequiredCost<=0)return 0;
+    final daily=_monthlyRequiredCost/_planningDays;
+    return min(_planningDays.toDouble(),max(0.0,remaining/daily));
+  }
   void _refreshMonthlyPlan({bool save=true}) {
     final rows=HouseholdEngine.monthlyShoppingPlan(
       meals:meals, pantry:pantry, budget:max(0,remaining),
@@ -167,45 +174,134 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   }
   String _dinnerMeal()=>plan.isEmpty?'':plan[DateTime.now().weekday%7]['meal'].toString();
   void _refreshShopping({bool save=true}){
-    final weekly=HouseholdEngine.weeklyShopping(plan,pantry);
-    final low=HouseholdEngine.shoppingList(pantry);
+    final previous=<String,Map<String,dynamic>>{};
+    for(final item in shopping){
+      previous[item['name'].toString().trim().toLowerCase()]=Map<String,dynamic>.from(item);
+    }
     final merged=<String,Map<String,dynamic>>{};
-    for(final x in low){merged[x['name'].toString().toLowerCase()]=Map<String,dynamic>.from(x);}
-    for(final x in weekly){
-      final key=x['name'].toString().toLowerCase();
-      final existing=merged[key];
-      if(existing!=null){
-        existing['suggestedQty']=max(
-          (existing['suggestedQty'] as num? ?? 0).toDouble(),
-          (x['purchaseQty'] as num? ?? 0).toDouble(),
-        );
-        existing['priority']='planned';
-      }else{
+    void mergeRow(String name,double qty,String unit,String priority){
+      final key=name.trim().toLowerCase();
+      final old=merged[key];
+      if(old==null){
+        final prior=previous[key];
         merged[key]={
-          'name':x['name'],
-          'suggestedQty':x['purchaseQty'],
-          'unit':x['unit'],
-          'priority':'planned',
-          'purchased':false,
+          'name':name,'suggestedQty':qty,'unit':unit,'priority':priority,
+          'purchased':prior?['purchased']==true,
+          'purchasedQty':(prior?['purchasedQty'] as num? ?? 0).toDouble(),
+          'actualCost':(prior?['actualCost'] as num? ?? 0).toDouble(),
+          'manual':prior?['manual']==true,'notes':prior?['notes']?.toString()??'',
         };
+      }else{
+        old['suggestedQty']=max((old['suggestedQty'] as num? ?? 0).toDouble(),qty);
+        if(priority=='monthly'||old['priority']=='monthly')old['priority']='monthly';
       }
+    }
+    for(final x in HouseholdEngine.shoppingList(pantry)){
+      mergeRow(x['name'].toString(),(x['suggestedQty'] as num? ?? 0).toDouble(),x['unit'].toString(),x['priority']?.toString()??'low-stock');
+    }
+    for(final x in HouseholdEngine.weeklyShopping(plan,pantry)){
+      mergeRow(x['name'].toString(),(x['purchaseQty'] as num? ?? 0).toDouble(),x['unit'].toString(),'planned');
     }
     for(final x in monthlyPlan){
-      final funded=(x['fundedQty'] as num? ?? 0).toDouble();
-      if(funded<=0)continue;
-      final key=x['name'].toString().toLowerCase();
-      final existing=merged[key];
-      if(existing!=null){
-        existing['suggestedQty']=max((existing['suggestedQty'] as num? ?? 0).toDouble(),funded);
-        existing['priority']='monthly';
-      }else{
-        merged[key]={'name':x['name'],'suggestedQty':funded,'unit':x['unit'],'priority':'monthly','purchased':false};
-      }
+      final qty=(x['fundedQty'] as num? ?? 0).toDouble();
+      if(qty>0)mergeRow(x['name'].toString(),qty,x['unit'].toString(),'monthly');
     }
-    final next=merged.values.toList();
+    final next=merged.values.where((x){
+      final planned=(x['suggestedQty'] as num? ?? 0).toDouble();
+      final bought=(x['purchasedQty'] as num? ?? 0).toDouble();
+      return planned>0||bought>0;
+    }).toList();
+    for(final x in next){
+      final planned=(x['suggestedQty'] as num? ?? 0).toDouble();
+      final bought=(x['purchasedQty'] as num? ?? 0).toDouble();
+      x['remainingQty']=max(0.0,planned-bought);
+      x['purchased']=planned>0&&bought>=planned-0.0001;
+    }
     setState((){shopping..clear()..addAll(next);});
     if(save)_save();
   }
+
+  Future<void> _editShoppingItem(int index) async {
+    if(index<0||index>=shopping.length)return;
+    final item=shopping[index];
+    final qty=TextEditingController(text:(item['suggestedQty'] as num? ?? 0).toString());
+    final notes=TextEditingController(text:item['notes']?.toString()??'');
+    var priority=item['priority']?.toString()??'planned';
+    await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>Padding(
+      padding:EdgeInsets.only(left:20,right:20,top:10,bottom:MediaQuery.of(sheet).viewInsets.bottom+20),
+      child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(t('EDIT SHOPPING ITEM','MODIFIER L’ARTICLE À ACHETER'),style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
+        const SizedBox(height:8),Text(item['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),
+        TextField(controller:qty,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:t('Planned quantity','Quantité prévue'))),
+        DropdownButtonFormField<String>(initialValue:['low-stock','planned','monthly','manual'].contains(priority)?priority:'planned',items:['low-stock','planned','monthly','manual'].map((x)=>DropdownMenuItem(value:x,child:Text(x))).toList(),onChanged:(v){if(v!=null)priority=v;},decoration:InputDecoration(labelText:t('Priority','Priorité'))),
+        TextField(controller:notes,maxLines:2,decoration:InputDecoration(labelText:t('Notes','Notes'))),
+        const SizedBox(height:10),
+        SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:(){
+          final value=double.tryParse(qty.text.replaceAll(',','.'));
+          if(value==null||value<0){_feedback('Enter a valid planned quantity.','Entrez une quantité prévue valide.',important:true);return;}
+          setState((){item['suggestedQty']=value;item['priority']=priority;item['manual']=true;item['notes']=notes.text.trim();item['remainingQty']=max(0.0,value-(item['purchasedQty'] as num? ?? 0).toDouble());});
+          _save();Navigator.pop(sheet);
+        },icon:const Icon(Icons.save),label:Text(t('SAVE SHOPPING ITEM','ENREGISTRER')))),
+        const SizedBox(height:8),
+      ]),
+    ));
+  }
+
+  Future<void> _addShoppingItem() async {
+    final name=TextEditingController(),qty=TextEditingController(text:'1'),unit=TextEditingController(text:'item');
+    await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>Padding(
+      padding:EdgeInsets.only(left:20,right:20,top:10,bottom:MediaQuery.of(sheet).viewInsets.bottom+20),
+      child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(t('ADD SHOPPING ITEM','AJOUTER UN ACHAT'),style:const TextStyle(fontSize:21,fontWeight:FontWeight.w900)),
+        TextField(controller:name,decoration:InputDecoration(labelText:t('Item','Article'))),
+        Row(children:[Expanded(child:TextField(controller:qty,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:t('Quantity','Quantité')))),const SizedBox(width:8),Expanded(child:TextField(controller:unit,decoration:InputDecoration(labelText:t('Unit','Unité'))))]),
+        const SizedBox(height:10),
+        SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:(){
+          final n=name.text.trim(),q=double.tryParse(qty.text.replaceAll(',','.'))??0;
+          if(n.isEmpty||q<=0){_feedback('Enter an item and quantity.','Entrez un article et une quantité.',important:true);return;}
+          final existing=shopping.indexWhere((x)=>x['name'].toString().toLowerCase()==n.toLowerCase());
+          setState((){if(existing>=0){shopping[existing]['suggestedQty']=q;shopping[existing]['unit']=unit.text.trim().isEmpty?'item':unit.text.trim();shopping[existing]['manual']=true;shopping[existing]['priority']='manual';shopping[existing]['remainingQty']=max(0.0,q-(shopping[existing]['purchasedQty'] as num? ?? 0).toDouble());}else{shopping.add({'name':n,'suggestedQty':q,'unit':unit.text.trim().isEmpty?'item':unit.text.trim(),'priority':'manual','purchased':false,'purchasedQty':0.0,'actualCost':0.0,'remainingQty':q,'manual':true,'notes':''});}});
+          _save();Navigator.pop(sheet);
+        },icon:const Icon(Icons.add_shopping_cart),label:Text(t('ADD TO SHOPPING','AJOUTER AUX ACHATS')))),
+        const SizedBox(height:8),
+      ]),
+    ));
+  }
+
+  Future<void> _recordShoppingPurchase(int index) async {
+    if(index<0||index>=shopping.length)return;
+    final item=shopping[index];
+    final planned=(item['suggestedQty'] as num? ?? 0).toDouble();
+    final already=(item['purchasedQty'] as num? ?? 0).toDouble();
+    final remainingQty=max(0.0,planned-already);
+    if(remainingQty<=0){_feedback('This item is already fully purchased.','Cet article est déjà entièrement acheté.');return;}
+    final qty=TextEditingController(text:remainingQty.toString()),cost=TextEditingController();
+    await showDialog<void>(context:context,builder:(dialog)=>AlertDialog(
+      title:Text(t('Record purchase','Enregistrer l’achat')),
+      content:Column(mainAxisSize:MainAxisSize.min,children:[
+        Text(item['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w800)),
+        TextField(controller:qty,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:t('Quantity actually bought','Quantité réellement achetée'))),
+        TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:InputDecoration(labelText:t('Actual total cost FCFA (optional)','Coût total réel FCFA (facultatif)'))),
+      ]),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(dialog),child:Text(t('Cancel','Annuler'))),
+        FilledButton(onPressed:(){
+          final q=double.tryParse(qty.text.replaceAll(',','.')),c=cost.text.trim().isEmpty?null:double.tryParse(cost.text.replaceAll(',','.'));
+          if(q==null||q<=0||q>remainingQty+0.0001||c!=null&&c<0){_feedback('Check the purchased quantity and cost.','Vérifiez la quantité achetée et le coût.',important:true);return;}
+          final name=item['name'].toString(),unit=item['unit'].toString();
+          setState((){item['purchasedQty']=(item['purchasedQty'] as num? ?? 0).toDouble()+q;item['actualCost']=(item['actualCost'] as num? ?? 0).toDouble()+(c??0);item['remainingQty']=max(0.0,planned-(item['purchasedQty'] as num).toDouble());item['purchased']=(item['remainingQty'] as num)<=0.0001;});
+          final pi=pantry.indexWhere((x)=>x['name'].toString().trim().toLowerCase()==name.trim().toLowerCase());
+          if(pi>=0){pantry[pi]['qty']=(pantry[pi]['qty'] as num? ?? 0).toDouble()+q;if(c!=null&&q>0)pantry[pi]['unitPrice']=c/q;}
+          else{pantry.add({'name':name,'qty':q,'unit':unit,'min':0.0,'target':q,'unitPrice':c==null?0.0:c/q,'category':'Other','location':'Dry store','useBy':'','longLife':false});}
+          purchaseHistory.insert(0,{'name':name,'qty':q,'unit':unit,'cost':c??0.0,'date':DateTime.now().toIso8601String()});
+          if(c!=null&&c>0)spent+=c;
+          _save();Navigator.pop(dialog);_refreshMonthlyPlan(save:false);_refreshShopping(save:false);_save();
+          _feedback('Purchase recorded, stock updated and planner refreshed.','Achat enregistré, stock mis à jour et planificateur actualisé.',important:true);
+        },child:Text(t('RECORD PURCHASE','ENREGISTRER'))),
+      ],
+    ));
+  }
+
   void _autoPlan({bool save=true}){final next=HouseholdEngine.generateWeek(meals:meals,pantry:pantry,budgetRemaining:remaining);setState((){plan..clear()..addAll(next);});_refreshShopping(save:false);if(save)_save();}
 
   @override Widget build(BuildContext context)=>MaterialApp(debugShowCheckedModeBanner:false,title:'MY HOME FOOD OS',
@@ -235,7 +331,10 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     ]),
     const SizedBox(height:8),
     _line(Icons.account_balance_wallet,t('Available for food: ','Disponible nourriture : ')+remaining.toStringAsFixed(0)+' FCFA'),
-    _line(Icons.shopping_cart,t('Planned funded basket: ','Panier financé : ')+_monthlyBasketCost.toStringAsFixed(0)+' FCFA'),
+    _line(Icons.shopping_cart,t('Full basket needed: ','Panier total nécessaire : ')+_monthlyRequiredCost.toStringAsFixed(0)+' FCFA'),
+    _line(Icons.payments_outlined,t('Funded now: ','Finançable maintenant : ')+_monthlyBasketCost.toStringAsFixed(0)+' FCFA'),
+    _line(Icons.warning_amber,t('Budget shortfall: ','Manque budget : ')+_monthlyShortfall.toStringAsFixed(0)+' FCFA'),
+    _line(Icons.calendar_today,t('Expected coverage: ','Couverture prévue : ')+_monthlyCoverageDays.toStringAsFixed(1)+' / '+_planningDays.toString()+' '+t('days','jours')),
     _line(Icons.inventory_2,t('Current stock: ','Stock actuel : ')+pantry.length.toString()+' '+t('tracked items','articles suivis')),
     const SizedBox(height:10),
     Row(children:[
@@ -906,15 +1005,33 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         ])),
       ])));
     }),
-    if(shopping.isNotEmpty)_card(t('Live shopping list','Liste d’achats dynamique'),[
+    _card(t('LIVE SHOPPING LIST','LISTE D’ACHATS ACTIVE'),[
       Row(children:[
-        Expanded(child:Text(t(shopping.where((x)=>x['purchased']!=true).length.toString()+' active item(s)',''+shopping.where((x)=>x['purchased']!=true).length.toString()+' article(s) actif(s)'),style:const TextStyle(fontWeight:FontWeight.w800))),
-        TextButton.icon(onPressed:_clearPurchasedShopping,icon:const Icon(Icons.archive_outlined),label:Text(t('Archive bought','Archiver les achats'))),
+        Expanded(child:Text(shopping.where((x)=>(x['remainingQty'] as num? ?? (x['suggestedQty'] as num? ?? 0))>0.0001).length.toString()+' '+t('item(s) still to buy','article(s) encore à acheter'),style:const TextStyle(fontWeight:FontWeight.w800))),
+        IconButton(onPressed:()=>_openEditor(_addShoppingItem),icon:const Icon(Icons.add_shopping_cart),tooltip:t('Add item','Ajouter')),
+        IconButton(onPressed:()=>_refreshShopping(),icon:const Icon(Icons.refresh),tooltip:t('Refresh','Actualiser')),
       ]),
-      const SizedBox(height:4),
-      for(var i=0;i<shopping.length;i++)CheckboxListTile(value:shopping[i]['purchased']==true,onChanged:(v)=>_purchaseShopping(i,v??false),title:Text(shopping[i]['name'].toString()),subtitle:Text(shopping[i]['suggestedQty'].toString()+' '+shopping[i]['unit'].toString()+' • '+shopping[i]['priority'].toString()))
+      if(shopping.isEmpty)Text(t('No shopping items yet. The planner will add them as needs change.','Aucun achat pour le moment. Le planificateur les ajoutera selon les besoins.')),
+      ...List.generate(shopping.length,(i){
+        final x=shopping[i],planned=(x['suggestedQty'] as num? ?? 0).toDouble(),bought=(x['purchasedQty'] as num? ?? 0).toDouble(),left=max(0.0,planned-bought),cost=(x['actualCost'] as num? ?? 0).toDouble();
+        return Card(margin:const EdgeInsets.only(top:7),child:ListTile(
+          leading:Icon(left<=0.0001?Icons.check_circle:Icons.shopping_cart_outlined),
+          title:Text(x['name'].toString(),style:const TextStyle(fontWeight:FontWeight.w700)),
+          subtitle:Text(t('Planned ','Prévu ')+planned.toStringAsFixed(2)+' '+x['unit'].toString()+' • '+t('Bought ','Acheté ')+bought.toStringAsFixed(2)+' • '+t('Left ','Reste ')+left.toStringAsFixed(2)+' • '+(cost>0?cost.toStringAsFixed(0)+' FCFA':'No cost recorded')),
+          trailing:PopupMenuButton<String>(onSelected:(v){if(v=='buy')_recordShoppingPurchase(i);if(v=='edit')_openEditor(()=>_editShoppingItem(i));if(v=='delete'){setState(()=>shopping.removeAt(i));_save();}},itemBuilder:(_)=>[
+            if(left>0.0001)PopupMenuItem(value:'buy',child:Text(t('Record purchase','Enregistrer l’achat'))),
+            PopupMenuItem(value:'edit',child:Text(t('Edit','Modifier'))),
+            PopupMenuItem(value:'delete',child:Text(t('Remove','Retirer'))),
+          ]),
+        ));
+      }),
+      if(shopping.isNotEmpty)...[
+        const SizedBox(height:8),
+        _line(Icons.receipt_long,t('Recorded purchase cost: ','Coût des achats enregistrés : ')+shopping.fold<double>(0,(sum,x)=>sum+(x['actualCost'] as num? ?? 0).toDouble()).toStringAsFixed(0)+' FCFA'),
+        _line(Icons.warning_amber,t('Monthly budget shortfall: ','Manque budget mensuel : ')+_monthlyShortfall.toStringAsFixed(0)+' FCFA'),
+      ],
     ]),
-  ]);
+;
 
   Widget _carePage()=>ListView(padding:const EdgeInsets.all(16),children:[
     _sectionHeader(t('House care','Entretien de la maison'),t('Keep the home schedule alive, editable and actionable.','Gardez le planning de la maison vivant, modifiable et pratique.'),Icons.cleaning_services),
@@ -1119,55 +1236,10 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
 
   void _purchaseShopping(int index,bool purchased){
     if(index<0||index>=shopping.length)return;
-    final item=shopping[index];
-    setState(()=>item['purchased']=purchased);
-    if(!purchased){_save();return;}
-    final name=item['name'].toString().toLowerCase();
-    final qty=(item['suggestedQty'] as num? ?? 0).toDouble();
-    final pi=pantry.indexWhere((x)=>x['name'].toString().toLowerCase()==name);
-    if(pi>=0){
-      setState(()=>pantry[pi]['qty']=(pantry[pi]['qty'] as num? ?? 0).toDouble()+qty);
-    } else {
-      setState(()=>pantry.add({'name':item['name'],'qty':qty,'unit':item['unit'],'min':0.0}));
-    }
-    _refreshShopping(save:false);
+    if(purchased){_recordShoppingPurchase(index);return;}
+    setState(()=>shopping[index]['purchased']=false);
     _save();
-    _showPurchaseCost(item['name'].toString(),qty,item['unit'].toString());
   }
-
-  void _showPurchaseCost(String itemName,double qty,String unit){
-    final c=TextEditingController();
-    showDialog(context:context,builder:(dialogContext)=>AlertDialog(
-      title:Text(t('Record purchase cost','Enregistrer le coût de l’achat')),
-      content:TextField(controller:c,keyboardType:TextInputType.number,decoration:InputDecoration(
-        labelText:t('Amount in FCFA (optional)','Montant en FCFA (facultatif)'),
-      )),
-      actions:[
-        TextButton(onPressed:(){
-          _recordPurchase(itemName,qty,unit,null);
-          Navigator.pop(dialogContext);
-        },child:Text(t('Skip','Ignorer'))),
-        FilledButton(onPressed:(){
-          final amount=double.tryParse(c.text.trim());
-          _recordPurchase(itemName,qty,unit,amount);
-          Navigator.pop(dialogContext);
-        },child:Text(t('Save cost','Enregistrer')))
-      ],
-    ));
-  }
-
-  void _recordPurchase(String name,double qty,String unit,double? cost){
-    final now=DateTime.now();
-    setState(()=>purchaseHistory.insert(0,{
-      'name':name,'qty':qty,'unit':unit,'cost':cost??0.0,'date':now.toIso8601String(),
-    }));
-    if(cost!=null && cost>=0 && cost>0)_addExpense(cost);
-    else _save();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(
-      t('Purchase recorded.','Achat enregistré.')
-    )));
-  }
-
 
   void _addExpense(double amount){setState(()=>spent+=amount);_save();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(amount.toStringAsFixed(0)+' FCFA '+t('added to food spending','ajoutés aux dépenses nourriture'))));}
   Future<void> _showAddStock() => _showItemEditor();
