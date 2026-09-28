@@ -329,7 +329,7 @@ class _HomeFoodShellState extends State<HomeFoodShell> {
         NavigationDestination(icon:Icon(Icons.cleaning_services_outlined),label:t('Care','Maison')),
         NavigationDestination(icon:Icon(Icons.bar_chart),label:t('Reports','Rapports')),
         NavigationDestination(icon:Icon(Icons.school_outlined),selectedIcon:Icon(Icons.school),label:t('Snacks','Goûters')),
-      ])));
+      ]));
   Widget _page()=>IndexedStack(index:tab,children:[_homePage(),_mealsPage(),_storagePage(),_carePage(),_reportsPage(),_snackPage()]);
 
   Widget _monthlyPlannerCard()=>_card(t('MONTHLY FOOD PLAN','PLAN ALIMENTAIRE MENSUEL'),[
