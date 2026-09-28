@@ -1031,7 +1031,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
         _line(Icons.warning_amber,t('Monthly budget shortfall: ','Manque budget mensuel : ')+_monthlyShortfall.toStringAsFixed(0)+' FCFA'),
       ],
     ]),
-;
+  ]);
 
   Widget _carePage()=>ListView(padding:const EdgeInsets.all(16),children:[
     _sectionHeader(t('House care','Entretien de la maison'),t('Keep the home schedule alive, editable and actionable.','Gardez le planning de la maison vivant, modifiable et pratique.'),Icons.cleaning_services),
@@ -1242,6 +1242,11 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
   }
 
   void _addExpense(double amount){setState(()=>spent+=amount);_save();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(amount.toStringAsFixed(0)+' FCFA '+t('added to food spending','ajoutés aux dépenses nourriture'))));}
+  void _recordPurchase(String name,double qty,String unit,double? cost){
+    purchaseHistory.insert(0,{'name':name,'qty':qty,'unit':unit,'cost':cost??0.0,'date':DateTime.now().toIso8601String()});
+    if(cost!=null&&cost>0)spent+=cost;
+    _save();
+  }
   Future<void> _showAddStock() => _showItemEditor();
 
   Future<void> _showItemEditor({int? index}) async {
