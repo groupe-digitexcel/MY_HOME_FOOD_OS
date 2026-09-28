@@ -1184,7 +1184,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
     var unit=existing?['unit']?.toString()??'kg';
     var location=existing?['location']?.toString()??'Dry store';
     var category=existing?['category']?.toString()??'Staples';
-    var longLife=existing?['longLife']==true:location=='Dry store';
+    var longLife=(existing?['longLife']==true) ? true : location=='Dry store';
     final categories=['Staples','Protein & legumes','Vegetables','Fruit','Oil & condiments','Drinks','School snacks','Other'];
     await showModalBottomSheet<void>(
       context:context,isScrollControlled:true,showDragHandle:true,
@@ -1229,7 +1229,7 @@ class _HomeFoodAppState extends State<HomeFoodApp> {
             _normalizePantry();
             _refreshMonthlyPlan(save:false);_refreshShopping(save:false);_save();
             Navigator.pop(sheet);
-            _feedback(index==null?t('Item added. Monthly basket and shopping updated.','Article ajouté. Panier mensuel et achats mis à jour.'):t('Item updated. Monthly basket and shopping recalculated.','Article modifié. Panier mensuel et achats recalculés.'),important:true);
+            if(index==null){_feedback('Item added. Monthly basket and shopping updated.','Article ajouté. Panier mensuel et achats mis à jour.',important:true);}else{_feedback('Item updated. Monthly basket and shopping recalculated.','Article modifié. Panier mensuel et achats recalculés.',important:true);}
           },icon:Icon(index==null?Icons.add:Icons.save),label:Text(index==null?t('ADD TO HOUSEHOLD','AJOUTER AU FOYER'):t('SAVE ITEM & RECALCULATE','ENREGISTRER ET RECALCULER')))),
         ])),
       )),
