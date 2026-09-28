@@ -513,7 +513,8 @@ class HouseholdEngine {
       final purchase = max(0.0, required - stock);
       if (purchase <= 0) continue;
       final costs = unitCosts[key] ?? const <double>[];
-      final unitCost = costs.isEmpty ? 0.0 : costs.reduce((a, b) => a + b) / costs.length;
+      final pantryUnitPrice = (pantryItem['unitPrice'] as num? ?? 0).toDouble();
+      final unitCost = pantryUnitPrice > 0 ? pantryUnitPrice : (costs.isEmpty ? 0.0 : costs.reduce((a, b) => a + b) / costs.length);
       final estimated = purchase * unitCost;
       final location = pantryItem['location']?.toString() ?? 'Dry store';
       final longLife = const ['rice','beans','palm oil','cassava','yam','groundnuts'].contains(key);
